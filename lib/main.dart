@@ -11,7 +11,7 @@ import 'screens/dashboard/child_dashboard.dart';
 import 'utils/theme.dart';
 import 'providers/app_provider.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/register': (context) => const RegisterScreen(),
           '/child-login': (context) => const ChildLoginScreen(),
-          // '/dashboard': (context) => const ParentDashboard(),
+          '/dashboard': (context) => const ParentDashboard(),
           '/child-dashboard': (context) => const ChildDashboard(),
         },
       ),
