@@ -53,7 +53,8 @@ class _ParentDashboardState extends State<ParentDashboard> {
       title: Consumer<AppProvider>(
         builder: (context, provider, child) {
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'SafeGuard',
