@@ -268,64 +268,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Divider
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Divider(color: AppTheme.lightGrey),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR',
-                            style: TextStyle(
-                              color: AppTheme.textGrey,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const Expanded(
-                          child: Divider(color: AppTheme.lightGrey),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Social Login Buttons
-                    _buildSocialLoginButton(
-                      'Continue with Google',
-                      Icons.g_mobiledata,
-                      () {
-                        // TODO: Implement Google Sign In
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Google Sign In coming soon!'),
-                          ),
-                        );
-                      },
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    _buildSocialLoginButton(
-                      'Continue with Apple',
-                      Icons.apple,
-                      () {
-                        // TODO: Implement Apple Sign In
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Apple Sign In coming soon!'),
-                          ),
-                        );
-                      },
-                    ),
-                    
-                    const SizedBox(height: 40),
+                  
+                    const SizedBox(height: 3r0),
                     
                     // Sign Up Link
                     Row(

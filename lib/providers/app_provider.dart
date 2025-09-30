@@ -340,7 +340,7 @@ class AppProvider with ChangeNotifier {
       case 'weak-password':
         return 'Password is too weak. Please choose a stronger password.';
       default:
-        return 'Authentication failed: ${e.message ?? 'Unknown error'}';
+        return 'Email or Password is Incorrect';
     }
   }
 
