@@ -269,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   
-                    const SizedBox(height: 3r0),
+                    const SizedBox(height: 30),
                     
                     // Sign Up Link
                     Row(
