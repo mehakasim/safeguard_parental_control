@@ -34,91 +34,10 @@ class SettingsTab extends StatelessWidget {
               _buildSettingsItem('Change Password', Icons.lock, () {
                 _showComingSoon(context, 'Change password');
               }),
-              _buildSettingsItem('Email Preferences', Icons.email, () {
-                _showComingSoon(context, 'Email preferences');
-              }),
-              _buildSettingsItem('Account Privacy', Icons.privacy_tip, () {
-                _showComingSoon(context, 'Privacy settings');
-              }),
             ],
           ),
           
           const SizedBox(height: 24),
-          
-          // Family Settings
-          _buildSettingsSection(
-            context,
-            'Family Settings',
-            Icons.family_restroom,
-            Colors.blue,
-            [
-              _buildSettingsItem('Default Restrictions', Icons.security, () {
-                _showComingSoon(context, 'Default restrictions');
-              }),
-              _buildSettingsItem('Screen Time Templates', Icons.timer, () {
-                _showComingSoon(context, 'Screen time templates');
-              }),
-              _buildSettingsItem('Notification Settings', Icons.notifications, () {
-                _showNotificationSettings(context);
-              }),
-              _buildSettingsItem('Content Filters', Icons.filter_alt, () {
-                _showComingSoon(context, 'Content filters');
-              }),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // App Settings
-          _buildSettingsSection(
-            context,
-            'App Settings',
-            Icons.settings,
-            Colors.orange,
-            [
-              _buildSettingsItem('Theme', Icons.palette, () {
-                _showComingSoon(context, 'Theme settings');
-              }),
-              _buildSettingsItem('Language', Icons.language, () {
-                _showComingSoon(context, 'Language settings');
-              }),
-              _buildSettingsItem('Data & Storage', Icons.storage, () {
-                _showComingSoon(context, 'Data settings');
-              }),
-              _buildSettingsItem('Export Data', Icons.download, () {
-                _showComingSoon(context, 'Export data');
-              }),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Support & Legal
-          _buildSettingsSection(
-            context,
-            'Support & Legal',
-            Icons.help,
-            Colors.purple,
-            [
-              _buildSettingsItem('Help Center', Icons.help_center, () {
-                _showHelpCenter(context);
-              }),
-              _buildSettingsItem('Contact Support', Icons.support_agent, () {
-                _showContactSupport(context);
-              }),
-              _buildSettingsItem('Privacy Policy', Icons.policy, () {
-                _showComingSoon(context, 'Privacy policy');
-              }),
-              _buildSettingsItem('Terms of Service', Icons.description, () {
-                _showComingSoon(context, 'Terms of service');
-              }),
-              _buildSettingsItem('About SafeGuard', Icons.info, () {
-                _showAboutDialog(context);
-              }),
-            ],
-          ),
-          
-          const SizedBox(height: 32),
           
           // App version and info
           _buildAppInfo(),
