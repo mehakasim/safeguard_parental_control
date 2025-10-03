@@ -47,7 +47,7 @@ class AppProvider with ChangeNotifier {
     });
   }
 
-  // KEEP YOUR EXISTING LOGIN METHOD NAME - just replace the implementation
+// LOGIN METHOD
   Future<bool> login(String email, String password) async {
     setLoading(true);
     clearError();
@@ -67,35 +67,58 @@ class AppProvider with ChangeNotifier {
         }
       } on FirebaseAuthException catch (authError) {
         // If Firebase Auth fails, check if it's a child account in Firestore
-        if (authError.code == 'user-not-found') {
-          QuerySnapshot childQuery = await _firestore
-              .collection('children')
-              .where('email', isEqualTo: email.trim())
-              .limit(1)
-              .get();
+        print('Firebase Auth failed: ${authError.code}');
+        setError('Invalid Email or Password');
 
-          if (childQuery.docs.isNotEmpty) {
-            Map<String, dynamic> childData =
-                childQuery.docs.first.data() as Map<String, dynamic>;
-            String storedPasswordHash = childData['passwordHash'] ?? '';
+        if (authError.code == 'user-not-found' ||
+            authError.code == 'wrong-password' ||
+            authError.code == 'invalid-credential') {
+          // Try to find child account
+          try {
+            QuerySnapshot childQuery = await _firestore
+                .collection('children')
+                .where('email', isEqualTo: email.trim())
+                .limit(1)
+                .get();
 
-            if (storedPasswordHash == _hashPassword(password)) {
-              _isLoggedIn = true;
-              _currentUserId = childQuery.docs.first.id;
-              _currentUserName = childData['name'];
-              _userType = UserType.child;
-              _children = [];
+            print('Child query results: ${childQuery.docs.length}');
 
-              setLoading(false);
-              notifyListeners();
-              return true;
+            if (childQuery.docs.isNotEmpty) {
+              Map<String, dynamic> childData =
+                  childQuery.docs.first.data() as Map<String, dynamic>;
+              String storedPasswordHash = childData['passwordHash'] ?? '';
+
+              print('Stored hash: $storedPasswordHash');
+              print('Input hash: ${_hashPassword(password)}');
+
+              // Compare password hashes
+              if (storedPasswordHash == _hashPassword(password)) {
+                _isLoggedIn = true;
+                _currentUserId = childQuery.docs.first.id;
+                _currentUserName = childData['name'];
+                _userType = UserType.child;
+                _children = [];
+
+                setLoading(false);
+                notifyListeners();
+                return true;
+              } else {
+                setError('Incorrect password');
+                setLoading(false);
+                return false;
+              }
             } else {
-              setError('Incorrect password');
-              setLoading(false);
-              return false;
+              // No child found with this email either
+              print('No child account found with email: $email');
             }
+          } catch (childError) {
+            print('Error checking child accounts: $childError');
+            setError('Error checking child account: ${childError.toString()}');
+            setLoading(false);
+            return false;
           }
         }
+
         throw authError;
       }
 
@@ -113,7 +136,7 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  // KEEP YOUR EXISTING PARENT REGISTER METHOD NAME
+  // PARENT REGISTER METHOD
   Future<bool> parentRegister(
       String name, String email, String password) async {
     setLoading(true);
@@ -153,7 +176,7 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  // KEEP YOUR EXISTING ADD CHILD METHOD NAME
+  // ADD CHILD METHOD
   Future<bool> addChildAccount({
     required String childName,
     required String childEmail,
@@ -171,7 +194,24 @@ class AppProvider with ChangeNotifier {
     clearError();
 
     try {
+      // Check if email already exists
+      QuerySnapshot existingChild = await _firestore
+          .collection('children')
+          .where('email', isEqualTo: childEmail.trim())
+          .limit(1)
+          .get();
+
+      if (existingChild.docs.isNotEmpty) {
+        setError('A child account with this email already exists');
+        setLoading(false);
+        return false;
+      }
+
       String childId = 'child_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Store password hash
+      String passwordHash = _hashPassword(password);
+      print('Creating child with password hash: $passwordHash'); // Debug
 
       await _firestore.collection('children').doc(childId).set({
         'name': childName,
@@ -182,8 +222,9 @@ class AppProvider with ChangeNotifier {
         'restrictions': restrictions,
         'isActive': true,
         'screenTime': 0,
-        'passwordHash': _hashPassword(password),
+        'passwordHash': passwordHash,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       await _firestore.collection('parents').doc(_currentUserId!).update({
@@ -194,6 +235,7 @@ class AppProvider with ChangeNotifier {
       setLoading(false);
       return true;
     } catch (e) {
+      print('Error adding child: $e'); // Debug
       setError('Failed to add child: ${e.toString()}');
       setLoading(false);
       return false;

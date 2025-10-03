@@ -38,7 +38,6 @@ class _ParentDashboardState extends State<ParentDashboard> {
         children: const [
           DashboardOverview(),
           ChildrenTab(),
-          AnalyticsTab(),
           SettingsTab(),
         ],
       ),
