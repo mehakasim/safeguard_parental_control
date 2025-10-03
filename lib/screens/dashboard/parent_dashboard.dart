@@ -38,6 +38,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         children: const [
           DashboardOverview(),
           ChildrenTab(),
+          // AnalyticsTab(),
           SettingsTab(),
         ],
       ),
@@ -134,10 +135,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
           icon: Icon(Icons.family_restroom),
           label: 'Children',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.analytics),
-          label: 'Analytics',
-        ),
+        // BottomNavigationBarItem(
+        //   icon: Icon(Icons.analytics),
+        //   label: 'Analytics',
+        // ),
         BottomNavigationBarItem(
           icon: Icon(Icons.settings),
           label: 'Settings',
@@ -192,14 +193,17 @@ class _ParentDashboardState extends State<ParentDashboard> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+          SizedBox(
+            width: 180,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
             ),
-            child: const Text('Logout'),
-          ),
+          )
         ],
       ),
     );
