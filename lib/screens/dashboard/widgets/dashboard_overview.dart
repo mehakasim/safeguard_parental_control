@@ -6,6 +6,7 @@ import '../../../utils/theme.dart';
 import '../../children/add_child_screen.dart';
 import 'child_activity_card.dart';
 import 'quick_stats_card.dart';
+import 'settings_tab.dart';
 
 class DashboardOverview extends StatelessWidget {
   const DashboardOverview({Key? key}) : super(key: key);
@@ -17,22 +18,22 @@ class DashboardOverview extends StatelessWidget {
       child: Consumer<AppProvider>(
         builder: (context, provider, child) {
           final children = provider.children;
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Quick Stats Cards
               _buildStatsGrid(children),
-              
+
               const SizedBox(height: 24),
-              
+
               // Today's Activity Section
               _buildSectionHeader('Today\'s Activity', () {
                 provider.refreshChildren();
               }),
-              
+
               const SizedBox(height: 16),
-              
+
               // Children Activity List
               if (provider.childrenLoading)
                 const Center(
@@ -45,14 +46,14 @@ class DashboardOverview extends StatelessWidget {
                 _buildEmptyState(context)
               else
                 ...children.map((child) => ChildActivityCard(child: child)),
-              
+
               const SizedBox(height: 24),
-              
+
               // Recent Alerts Section
               _buildRecentAlertsSection(),
-              
+
               const SizedBox(height: 24),
-              
+
               // Quick Actions
               _buildQuickActionsSection(context),
             ],
@@ -80,7 +81,10 @@ class DashboardOverview extends StatelessWidget {
             Expanded(
               child: QuickStatsCard(
                 title: 'Active Today',
-                value: children.where((child) => (child['screenTime'] ?? 0) > 0).length.toString(),
+                value: children
+                    .where((child) => (child['screenTime'] ?? 0) > 0)
+                    .length
+                    .toString(),
                 icon: Icons.access_time,
                 color: Colors.blue,
                 subtitle: 'Using devices',
@@ -300,12 +304,18 @@ class DashboardOverview extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _buildQuickActionCard(
-                'Family Report',
-                Icons.assessment,
+                'Settings',
+                Icons.settings,
                 Colors.blue,
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Family reports coming soon!')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Scaffold(
+                        appBar: AppBar(title: const Text('Settings')),
+                        body: const SettingsTab(),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -316,7 +326,8 @@ class DashboardOverview extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -365,12 +376,12 @@ class DashboardOverview extends StatelessWidget {
   // Helper methods
   String _calculateAverageScreenTime(List<Map<String, dynamic>> children) {
     if (children.isEmpty) return '0m';
-    
+
     int totalMinutes = 0;
     for (var child in children) {
       totalMinutes += (child['screenTime'] ?? 0) as int;
     }
-    
+
     int average = (totalMinutes / children.length).round();
     return _formatTime(average);
   }

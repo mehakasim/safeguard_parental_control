@@ -285,21 +285,21 @@ class _ChildListItem extends StatelessWidget {
                 ],
               ),
             ),
-            const PopupMenuItem(
-              value: 'quick',
-              child: Row(
-                children: [
-                  Icon(Icons.flash_on, color: Colors.orange, size: 20),
-                  SizedBox(width: 12),
-                  Text('Quick Actions'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'divider',
-              enabled: false,
-              child: Divider(),
-            ),
+            // const PopupMenuItem(
+            //   value: 'quick',
+            //   child: Row(
+            //     children: [
+            //       Icon(Icons.flash_on, color: Colors.orange, size: 20),
+            //       SizedBox(width: 12),
+            //       Text('Quick Actions'),
+            //     ],
+            //   ),
+            // ),
+            // const PopupMenuItem(
+            //   value: 'divider',
+            //   enabled: false,
+            //   child: Divider(),
+            // ),
             const PopupMenuItem(
               value: 'delete',
               child: Row(
@@ -629,9 +629,9 @@ class _ChildListItem extends StatelessWidget {
           ),
         );
         break;
-      case 'quick':
-        ChildQuickActions.show(context, child);
-        break;
+      // case 'quick':
+      //   ChildQuickActions.show(context, child);
+      //   break;
       case 'delete':
         _showDeleteDialog(context);
         break;

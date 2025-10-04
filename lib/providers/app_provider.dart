@@ -68,7 +68,7 @@ class AppProvider with ChangeNotifier {
       } on FirebaseAuthException catch (authError) {
         // If Firebase Auth fails, check if it's a child account in Firestore
         print('Firebase Auth failed: ${authError.code}');
-        setError('Invalid Email or Password');
+
 
         if (authError.code == 'user-not-found' ||
             authError.code == 'wrong-password' ||
@@ -100,6 +100,7 @@ class AppProvider with ChangeNotifier {
                 _children = [];
 
                 setLoading(false);
+                clearError(); 
                 notifyListeners();
                 return true;
               } else {
@@ -110,6 +111,7 @@ class AppProvider with ChangeNotifier {
             } else {
               // No child found with this email either
               print('No child account found with email: $email');
+              setError('Invalid Email or Password'); 
             }
           } catch (childError) {
             print('Error checking child accounts: $childError');
@@ -118,7 +120,6 @@ class AppProvider with ChangeNotifier {
             return false;
           }
         }
-
         throw authError;
       }
 
