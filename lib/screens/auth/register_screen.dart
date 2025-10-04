@@ -215,7 +215,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     const SizedBox(height: 20),
 
-                    // Welcome Message
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.seaGreen.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.shield_rounded,
+                          size: 60,
+                          color: AppTheme.seaGreen,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
                     const Text(
                       'Create Parent Account',
                       textAlign: TextAlign.center,
@@ -364,7 +380,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Terms and Conditions
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Checkbox(
                           value: _acceptTerms,
@@ -440,8 +455,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
+                                      Colors.white),
                                 ),
                               )
                             : const Text(
