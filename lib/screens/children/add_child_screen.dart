@@ -17,11 +17,11 @@ class _AddChildScreenState extends State<AddChildScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _ageController = TextEditingController();
-  
+
   bool _isPasswordVisible = false;
   double _screenTimeLimit = 120; // Default 2 hours
   List<String> _selectedRestrictions = [];
-  
+
   final List<Map<String, dynamic>> _restrictionOptions = [
     {
       'id': 'adult_content',
@@ -128,10 +128,21 @@ class _AddChildScreenState extends State<AddChildScreen> {
     // Apply recommended restrictions based on age
     setState(() {
       if (age >= 3 && age <= 8) {
-        _selectedRestrictions = ['adult_content', 'violence', 'social_media', 'shopping', 'ads'];
+        _selectedRestrictions = [
+          'adult_content',
+          'violence',
+          'social_media',
+          'shopping',
+          'ads'
+        ];
         _screenTimeLimit = 60; // 1 hour
       } else if (age >= 9 && age <= 12) {
-        _selectedRestrictions = ['adult_content', 'violence', 'shopping', 'ads'];
+        _selectedRestrictions = [
+          'adult_content',
+          'violence',
+          'shopping',
+          'ads'
+        ];
         _screenTimeLimit = 120; // 2 hours
       } else if (age >= 13 && age <= 15) {
         _selectedRestrictions = ['adult_content', 'violence', 'shopping'];
@@ -157,7 +168,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
     }
 
     final appProvider = Provider.of<AppProvider>(context, listen: false);
-    
+
     final success = await appProvider.addChildAccount(
       childName: _nameController.text.trim(),
       childEmail: _emailController.text.trim(),
@@ -206,23 +217,23 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   children: [
                     // Header Section
                     _buildHeaderSection(),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Basic Information
                     _buildSectionTitle('Basic Information', Icons.person),
                     const SizedBox(height: 16),
                     _buildBasicInfoSection(),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Screen Time Control
                     _buildSectionTitle('Screen Time Control', Icons.timer),
                     const SizedBox(height: 16),
                     _buildScreenTimeSection(),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Content Restrictions
                     _buildSectionTitle('Content Restrictions', Icons.security),
                     const SizedBox(height: 8),
@@ -235,16 +246,16 @@ class _AddChildScreenState extends State<AddChildScreen> {
                     ),
                     const SizedBox(height: 16),
                     _buildRestrictionsSection(),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Error Message
                     if (appProvider.errorMessage != null)
                       _buildErrorMessage(appProvider.errorMessage!),
-                    
+
                     // Add Child Button
                     _buildAddButton(appProvider),
-                    
+
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -388,9 +399,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Age with auto-apply button
           Row(
             children: [
@@ -433,14 +444,15 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.seaGreen,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 ),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Email
           TextFormField(
             controller: _emailController,
@@ -465,9 +477,9 @@ class _AddChildScreenState extends State<AddChildScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Password
           TextFormField(
             controller: _passwordController,
@@ -512,7 +524,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
   Widget _buildScreenTimeSection() {
     final hours = _screenTimeLimit ~/ 60;
     final minutes = _screenTimeLimit % 60;
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -540,7 +552,8 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppTheme.seaGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -604,7 +617,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
     return Column(
       children: _restrictionOptions.map((restriction) {
         final isSelected = _selectedRestrictions.contains(restriction['id']);
-        
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
