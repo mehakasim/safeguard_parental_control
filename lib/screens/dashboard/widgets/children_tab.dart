@@ -6,7 +6,7 @@ import '../../../utils/theme.dart';
 import '../../children/add_child_screen.dart';
 import '../../children/edit_child_screen.dart';
 import '../../children/child_view_screen.dart';
-import 'child_quick_actions.dart';
+import '../../parent/screen_time_manager_screen.dart';
 
 class ChildrenTab extends StatelessWidget {
   const ChildrenTab({Key? key}) : super(key: key);
@@ -38,7 +38,7 @@ class ChildrenTab extends StatelessWidget {
           children: [
             // Header with stats
             _buildHeaderCard(children, provider),
-            
+
             // Children list
             Expanded(
               child: RefreshIndicator(
@@ -64,10 +64,13 @@ class ChildrenTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderCard(List<Map<String, dynamic>> children, AppProvider provider) {
-    final activeToday = children.where((c) => (c['screenTime'] ?? 0) > 0).length;
-    final totalScreenTime = children.fold<int>(0, (sum, c) => sum + (c['screenTime'] as int? ?? 0));
-    
+  Widget _buildHeaderCard(
+      List<Map<String, dynamic>> children, AppProvider provider) {
+    final activeToday =
+        children.where((c) => (c['screenTime'] ?? 0) > 0).length;
+    final totalScreenTime =
+        children.fold<int>(0, (sum, c) => sum + (c['screenTime'] as int? ?? 0));
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -94,7 +97,8 @@ class ChildrenTab extends StatelessWidget {
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.family_restroom, color: Colors.white, size: 32),
+            child: const Icon(Icons.family_restroom,
+                color: Colors.white, size: 32),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -239,14 +243,14 @@ class _ChildListItem extends StatelessWidget {
     final limit = child['screenTimeLimit'] ?? 120;
     final isOverLimit = screenTime > limit;
     final restrictions = child['restrictions'] as List? ?? [];
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: isOverLimit 
-            ? Border.all(color: Colors.red.shade300, width: 2) 
+        border: isOverLimit
+            ? Border.all(color: Colors.red.shade300, width: 2)
             : null,
         boxShadow: [
           BoxShadow(
@@ -276,6 +280,16 @@ class _ChildListItem extends StatelessWidget {
               ),
             ),
             const PopupMenuItem(
+              value: 'screen_time',
+              child: Row(
+                children: [
+                  Icon(Icons.timer, color: Colors.green, size: 20),
+                  SizedBox(width: 12),
+                  Text('Manage Screen Time'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
               value: 'edit',
               child: Row(
                 children: [
@@ -285,21 +299,6 @@ class _ChildListItem extends StatelessWidget {
                 ],
               ),
             ),
-            // const PopupMenuItem(
-            //   value: 'quick',
-            //   child: Row(
-            //     children: [
-            //       Icon(Icons.flash_on, color: Colors.orange, size: 20),
-            //       SizedBox(width: 12),
-            //       Text('Quick Actions'),
-            //     ],
-            //   ),
-            // ),
-            // const PopupMenuItem(
-            //   value: 'divider',
-            //   enabled: false,
-            //   child: Divider(),
-            // ),
             const PopupMenuItem(
               value: 'delete',
               child: Row(
@@ -532,7 +531,7 @@ class _ChildListItem extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(dialogContext); // Close dialog
-              
+
               // Show loading
               showDialog(
                 context: context,
@@ -549,7 +548,7 @@ class _ChildListItem extends StatelessWidget {
 
               if (context.mounted) {
                 Navigator.pop(context); // Close loading
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Row(
@@ -610,7 +609,7 @@ class _ChildListItem extends StatelessWidget {
       ),
     );
   }
-  
+
   void _handleMenuAction(BuildContext context, String value) {
     switch (value) {
       case 'view':
@@ -618,6 +617,17 @@ class _ChildListItem extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => ChildViewScreen(child: child),
+          ),
+        );
+        break;
+      case 'screen_time': // ADD THIS CASE
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ScreenTimeManagerScreen(
+              childId: child['id'],
+              childName: child['name'],
+            ),
           ),
         );
         break;
@@ -629,9 +639,6 @@ class _ChildListItem extends StatelessWidget {
           ),
         );
         break;
-      // case 'quick':
-      //   ChildQuickActions.show(context, child);
-      //   break;
       case 'delete':
         _showDeleteDialog(context);
         break;

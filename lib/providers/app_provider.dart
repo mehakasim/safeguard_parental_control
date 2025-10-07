@@ -69,7 +69,6 @@ class AppProvider with ChangeNotifier {
         // If Firebase Auth fails, check if it's a child account in Firestore
         print('Firebase Auth failed: ${authError.code}');
 
-
         if (authError.code == 'user-not-found' ||
             authError.code == 'wrong-password' ||
             authError.code == 'invalid-credential') {
@@ -81,15 +80,10 @@ class AppProvider with ChangeNotifier {
                 .limit(1)
                 .get();
 
-            print('Child query results: ${childQuery.docs.length}');
-
             if (childQuery.docs.isNotEmpty) {
               Map<String, dynamic> childData =
                   childQuery.docs.first.data() as Map<String, dynamic>;
               String storedPasswordHash = childData['passwordHash'] ?? '';
-
-              print('Stored hash: $storedPasswordHash');
-              print('Input hash: ${_hashPassword(password)}');
 
               // Compare password hashes
               if (storedPasswordHash == _hashPassword(password)) {
@@ -98,9 +92,11 @@ class AppProvider with ChangeNotifier {
                 _currentUserName = childData['name'];
                 _userType = UserType.child;
                 _children = [];
+                final userCred = await FirebaseAuth.instance.signInAnonymously();
+                final uid = userCred.user!.uid;
 
                 setLoading(false);
-                clearError(); 
+                clearError();
                 notifyListeners();
                 return true;
               } else {
@@ -111,7 +107,7 @@ class AppProvider with ChangeNotifier {
             } else {
               // No child found with this email either
               print('No child account found with email: $email');
-              setError('Invalid Email or Password'); 
+              setError('Invalid Email or Password');
             }
           } catch (childError) {
             print('Error checking child accounts: $childError');

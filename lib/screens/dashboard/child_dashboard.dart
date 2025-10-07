@@ -2,11 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:safeguard_parental_control/services/screen_time_service.dart';
 import '../../providers/app_provider.dart';
 import '../../utils/theme.dart';
 import 'child/child_home_tab.dart';
 import 'child/child_apps_tab.dart';
-import 'child/child_learn_tab.dart';
 import 'child/child_settings_screen.dart';
 
 class ChildDashboard extends StatefulWidget {
@@ -19,58 +19,27 @@ class ChildDashboard extends StatefulWidget {
 class _ChildDashboardState extends State<ChildDashboard> {
   int _selectedIndex = 0;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  Map<String, dynamic>? _childData;
-  bool _isLoading = true;
+  final _screenTimeService = ScreenTimeService();
 
   @override
   void initState() {
     super.initState();
-    _loadChildData();
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    if (provider.currentUserId != null) {
+      _screenTimeService.startTracking(provider.currentUserId!);
+    }
   }
 
-  Future<void> _loadChildData() async {
-    final provider = Provider.of<AppProvider>(context, listen: false);
-    if (provider.currentUserId == null) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final doc = await _firestore
-          .collection('children')
-          .doc(provider.currentUserId)
-          .get();
-
-      if (doc.exists) {
-        setState(() {
-          _childData = doc.data();
-          _childData!['id'] = doc.id;
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading data: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+  /// Firestore stream of the child's document
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _childStream(String childId) {
+    return _firestore.collection('children').doc(childId).snapshots();
   }
 
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
@@ -110,120 +79,64 @@ class _ChildDashboardState extends State<ChildDashboard> {
       final provider = Provider.of<AppProvider>(context, listen: false);
       await provider.logout();
 
-      // Add navigation here
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.grey[50],
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                color: AppTheme.seaGreen,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Loading your profile...',
-                style: TextStyle(
-                  color: AppTheme.textGrey,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    final childId = provider.currentUserId;
+
+    if (childId == null) {
+      return const Scaffold(
+        body: Center(child: Text('No child logged in')),
       );
     }
 
-    if (_childData == null) {
-      return Scaffold(
-        backgroundColor: Colors.grey[50],
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade400,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Unable to load profile',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textBlack,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Please check your connection and try again',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGrey,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
-                  onPressed: _loadChildData,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.seaGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _childStream(childId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: Colors.grey[50],
+            body: const Center(
+              child: CircularProgressIndicator(color: AppTheme.seaGreen),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            backgroundColor: Colors.grey[50],
+            body: const Center(child: Text('Child profile not found')),
+          );
+        }
+
+        final childData = snapshot.data!.data()!;
+        return _buildDashboard(childData);
+      },
+    );
+  }
+
+  /// Builds the main dashboard UI with tabs and nav
+  Widget _buildDashboard(Map<String, dynamic> childData) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(childData),
       body: SafeArea(
         child: IndexedStack(
           index: _selectedIndex,
           children: [
             ChildHomeTab(
-              childData: _childData!,
-              onRefresh: _loadChildData,
+              childData: childData,
+              onRefresh: () {}, // not needed anymore
             ),
             ChildAppsTab(
-              restrictions: _childData!['restrictions'] ?? [],
+              restrictions: childData['restrictions'] ?? [],
             ),
-            // const ChildLearnTab(),
             const ChildSettingsScreen(),
           ],
         ),
@@ -232,40 +145,34 @@ class _ChildDashboardState extends State<ChildDashboard> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  /// Builds the AppBar and shows live-updating screenTime
+  PreferredSizeWidget _buildAppBar(Map<String, dynamic> childData) {
+    final int screenTime = childData['screenTime'] ?? 0;
+
     return AppBar(
       automaticallyImplyLeading: false,
-      title: Consumer<AppProvider>(
-        builder: (context, provider, child) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'SafeGuard',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Hi, ${_childData?['name'] ?? 'User'}!',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white70,
-                ),
-              ),
-            ],
-          );
-        },
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'SafeGuard',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            'Hi, ${childData['name'] ?? 'User'}!',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: Colors.white70,
+            ),
+          ),
+        ],
       ),
       actions: [
         IconButton(
           icon: const Icon(Icons.help_outline),
-          onPressed: () {
-            _showHelpDialog();
-          },
+          onPressed: _showHelpDialog,
         ),
         PopupMenuButton<String>(
           onSelected: _handleMenuAction,
@@ -308,9 +215,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
@@ -329,28 +234,19 @@ class _ChildDashboardState extends State<ChildDashboard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Need help? Here are some tips:',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            Text('Need help? Here are some tips:', style: TextStyle(fontWeight: FontWeight.w600)),
             SizedBox(height: 12),
             Text('• Check your screen time in the Home tab'),
             Text('• Find safe apps in the Apps tab'),
             Text('• View your profile in Settings'),
             SizedBox(height: 12),
-            Text(
-              'If you need more help, ask your parent!',
-              style: TextStyle(fontStyle: FontStyle.italic),
-            ),
+            Text('If you need more help, ask your parent!', style: TextStyle(fontStyle: FontStyle.italic)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Got it!',
-              style: TextStyle(color: AppTheme.seaGreen),
-            ),
+            child: const Text('Got it!', style: TextStyle(color: AppTheme.seaGreen)),
           ),
         ],
       ),
@@ -361,9 +257,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
@@ -372,11 +266,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
                 color: AppTheme.seaGreen.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.shield_rounded,
-                color: AppTheme.seaGreen,
-                size: 24,
-              ),
+              child: const Icon(Icons.shield_rounded, color: AppTheme.seaGreen, size: 24),
             ),
             const SizedBox(width: 12),
             const Text('About SafeGuard'),
@@ -386,40 +276,22 @@ class _ChildDashboardState extends State<ChildDashboard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'SafeGuard helps keep you safe while exploring the digital world.',
-              style: TextStyle(fontSize: 16),
-            ),
+            Text('SafeGuard helps keep you safe while exploring the digital world.', style: TextStyle(fontSize: 16)),
             SizedBox(height: 16),
-            Text(
-              'Features:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
+            Text('Features:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             SizedBox(height: 8),
             Text('• Screen time tracking'),
             Text('• Safe content filtering'),
             Text('• Educational resources'),
             Text('• Fun and safe apps'),
             SizedBox(height: 16),
-            Text(
-              'Version: 1.0.0',
-              style: TextStyle(
-                color: AppTheme.textGrey,
-                fontSize: 12,
-              ),
-            ),
+            Text('Version: 1.0.0', style: TextStyle(color: AppTheme.textGrey, fontSize: 12)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(color: AppTheme.seaGreen),
-            ),
+            child: const Text('Close', style: TextStyle(color: AppTheme.seaGreen)),
           ),
         ],
       ),
@@ -431,11 +303,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2)),
         ],
       ),
       child: SafeArea(
@@ -446,7 +314,6 @@ class _ChildDashboardState extends State<ChildDashboard> {
             children: [
               _buildNavItem(Icons.home_rounded, 'Home', 0),
               _buildNavItem(Icons.apps_rounded, 'Apps', 1),
-              // _buildNavItem(Icons.school_rounded, 'Learn', 2),
               _buildNavItem(Icons.settings_rounded, 'Settings', 2),
             ],
           ),
@@ -463,19 +330,13 @@ class _ChildDashboardState extends State<ChildDashboard> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.seaGreen.withOpacity(0.1)
-              : Colors.transparent,
+          color: isSelected ? AppTheme.seaGreen.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? AppTheme.seaGreen : Colors.grey,
-              size: 26,
-            ),
+            Icon(icon, color: isSelected ? AppTheme.seaGreen : Colors.grey, size: 26),
             const SizedBox(height: 4),
             Text(
               label,
