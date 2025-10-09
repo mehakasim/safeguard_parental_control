@@ -20,19 +20,59 @@ class _ChildDashboardState extends State<ChildDashboard> {
   int _selectedIndex = 0;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _screenTimeService = ScreenTimeService();
+  
+  Map<String, dynamic>? _childData;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _loadChildData();
     final provider = Provider.of<AppProvider>(context, listen: false);
     if (provider.currentUserId != null) {
       _screenTimeService.startTracking(provider.currentUserId!);
     }
   }
 
-  /// Firestore stream of the child's document
-  Stream<DocumentSnapshot<Map<String, dynamic>>> _childStream(String childId) {
-    return _firestore.collection('children').doc(childId).snapshots();
+  @override
+  void dispose() {
+    _screenTimeService.stopTracking();
+    super.dispose();
+  }
+
+  Future<void> _loadChildData() async {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    if (provider.currentUserId == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final doc = await _firestore
+          .collection('children')
+          .doc(provider.currentUserId)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          _childData = doc.data();
+          _childData!['id'] = doc.id;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -87,55 +127,85 @@ class _ChildDashboardState extends State<ChildDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<AppProvider>(context, listen: false);
-    final childId = provider.currentUserId;
-
-    if (childId == null) {
-      return const Scaffold(
-        body: Center(child: Text('No child logged in')),
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppTheme.seaGreen),
+              const SizedBox(height: 16),
+              const Text(
+                'Loading your profile...',
+                style: TextStyle(color: AppTheme.textGrey, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _childStream(childId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
-            backgroundColor: Colors.grey[50],
-            body: const Center(
-              child: CircularProgressIndicator(color: AppTheme.seaGreen),
+    if (_childData == null) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Unable to load profile',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textBlack),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please check your connection and try again',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: AppTheme.textGrey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadChildData,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.seaGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
             ),
-          );
-        }
+          ),
+        ),
+      );
+    }
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return Scaffold(
-            backgroundColor: Colors.grey[50],
-            body: const Center(child: Text('Child profile not found')),
-          );
-        }
-
-        final childData = snapshot.data!.data()!;
-        return _buildDashboard(childData);
-      },
-    );
-  }
-
-  /// Builds the main dashboard UI with tabs and nav
-  Widget _buildDashboard(Map<String, dynamic> childData) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: _buildAppBar(childData),
+      appBar: _buildAppBar(),
       body: SafeArea(
         child: IndexedStack(
           index: _selectedIndex,
           children: [
             ChildHomeTab(
-              childData: childData,
-              onRefresh: () {}, // not needed anymore
+              childData: _childData!,
+              onRefresh: _loadChildData,
             ),
             ChildAppsTab(
-              restrictions: childData['restrictions'] ?? [],
+              restrictions: _childData!['restrictions'] ?? [],
             ),
             const ChildSettingsScreen(),
           ],
@@ -145,29 +215,30 @@ class _ChildDashboardState extends State<ChildDashboard> {
     );
   }
 
-  /// Builds the AppBar and shows live-updating screenTime
-  PreferredSizeWidget _buildAppBar(Map<String, dynamic> childData) {
-    final int screenTime = childData['screenTime'] ?? 0;
-
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
       automaticallyImplyLeading: false,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'SafeGuard',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          Text(
-            'Hi, ${childData['name'] ?? 'User'}!',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.normal,
-              color: Colors.white70,
-            ),
-          ),
-        ],
+      title: Consumer<AppProvider>(
+        builder: (context, provider, child) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'SafeGuard',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Hi, ${_childData?['name'] ?? 'User'}!',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          );
+        },
       ),
       actions: [
         IconButton(

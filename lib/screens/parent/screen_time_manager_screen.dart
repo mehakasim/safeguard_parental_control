@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../providers/app_provider.dart';
-import '../../../services/screen_time_service.dart';
-import '../../../utils/theme.dart';
+import '../../providers/app_provider.dart';
+import '../../services/screen_time_service.dart';
+import '../../utils/theme.dart';
 
 class ScreenTimeManagerScreen extends StatefulWidget {
   final String childId;
@@ -17,15 +17,17 @@ class ScreenTimeManagerScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ScreenTimeManagerScreen> createState() => _ScreenTimeManagerScreenState();
+  State<ScreenTimeManagerScreen> createState() =>
+      _ScreenTimeManagerScreenState();
 }
 
 class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
   final ScreenTimeService _screenTimeService = ScreenTimeService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   int _newLimit = 120; // Default 2 hours
+  int _currentLimit = 120; // Track current limit separately
   bool _isSaving = false;
+  bool _isInitialized = false; // Track if we've loaded initial data
 
   @override
   Widget build(BuildContext context) {
@@ -46,13 +48,25 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
             return const Center(child: Text('No data available'));
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          final rawData = snapshot.data!.data();
+          if (rawData == null) {
+            return const Center(child: Text('No data available'));
+          }
+
+          final data = rawData as Map<String, dynamic>;
           final screenTime = data['screenTime'] ?? 0;
           final limit = data['screenTimeLimit'] ?? 120;
           final percentage = (screenTime / limit * 100).clamp(0, 100);
           final remaining = (limit - screenTime).clamp(0, limit);
 
-          if (_newLimit == 120) {
+          // Only initialize once to prevent slider jumps
+          if (!_isInitialized) {
+            _newLimit = limit;
+            _currentLimit = limit;
+            _isInitialized = true;
+          } else if (limit != _currentLimit && !_isSaving) {
+            // Update current limit if it changed externally (not while saving)
+            _currentLimit = limit;
             _newLimit = limit;
           }
 
@@ -62,20 +76,16 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Current Usage Card
-                _buildUsageCard(screenTime, limit, remaining, percentage),
-                
+                _buildUsageCard(
+                    screenTime, _currentLimit, remaining, percentage),
+
                 const SizedBox(height: 24),
-                
+
                 // Adjust Limit Section
-                _buildAdjustLimitSection(limit),
-                
+                _buildAdjustLimitSection(_currentLimit),
+
                 const SizedBox(height: 24),
-                
-                // Quick Actions
-                // _buildQuickActionsSection(screenTime, limit),
-                
-                const SizedBox(height: 24),
-                
+
                 // Reset Button
                 _buildResetButton(),
               ],
@@ -86,7 +96,8 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
     );
   }
 
-  Widget _buildUsageCard(int screenTime, int limit, int remaining, double percentage) {
+  Widget _buildUsageCard(
+      int screenTime, int limit, int remaining, double percentage) {
     final provider = Provider.of<AppProvider>(context);
     final isOverLimit = screenTime > limit;
 
@@ -103,7 +114,8 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: (isOverLimit ? Colors.red : AppTheme.seaGreen).withOpacity(0.3),
+            color:
+                (isOverLimit ? Colors.red : AppTheme.seaGreen).withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -124,7 +136,8 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
               ),
               if (isOverLimit)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
@@ -150,30 +163,41 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildTimeDisplay('Used', provider.formatScreenTime(screenTime), Icons.timer),
+              _buildTimeDisplay(
+                  'Used', provider.formatScreenTime(screenTime), Icons.timer),
               Container(
                 height: 50,
                 width: 2,
                 color: Colors.white.withOpacity(0.3),
               ),
-              _buildTimeDisplay('Limit', provider.formatScreenTime(limit), Icons.flag),
+              _buildTimeDisplay(
+                  'Limit', provider.formatScreenTime(limit), Icons.flag),
               Container(
                 height: 50,
                 width: 2,
                 color: Colors.white.withOpacity(0.3),
               ),
-              _buildTimeDisplay('Left', provider.formatScreenTime(remaining), Icons.hourglass_bottom),
+              _buildTimeDisplay('Left', provider.formatScreenTime(remaining),
+                  Icons.hourglass_bottom),
             ],
           ),
           const SizedBox(height: 20),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: (percentage / 100).clamp(0.0, 1.0),
-              minHeight: 14,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(
+                begin: 0, end: (percentage / 100).clamp(0.0, 1.0)),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+            builder: (context, value, _) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: value,
+                  minHeight: 14,
+                  backgroundColor: Colors.white.withOpacity(0.3),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
           Text(
@@ -214,8 +238,6 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
 
   Widget _buildAdjustLimitSection(int currentLimit) {
     final provider = Provider.of<AppProvider>(context);
-    final hours = _newLimit ~/ 60;
-    final minutes = _newLimit % 60;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -288,15 +310,18 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('15 min', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              Text('8 hours', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text('15 min',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text('8 hours',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ],
           ),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _newLimit == currentLimit || _isSaving ? null : _saveNewLimit,
+              onPressed:
+                  _newLimit == currentLimit || _isSaving ? null : _saveNewLimit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.seaGreen,
                 foregroundColor: Colors.white,
@@ -316,7 +341,8 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
                     )
                   : const Text(
                       'Save New Limit',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
             ),
           ),
@@ -324,108 +350,6 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
       ),
     );
   }
-
-  // Widget _buildQuickActionsSection(int currentTime, int limit) {
-  //   return Container(
-  //     padding: const EdgeInsets.all(20),
-  //     decoration: BoxDecoration(
-  //       color: Colors.white,
-  //       borderRadius: BorderRadius.circular(16),
-  //       boxShadow: [
-  //         BoxShadow(
-  //           color: Colors.black.withOpacity(0.05),
-  //           blurRadius: 10,
-  //           offset: const Offset(0, 2),
-  //         ),
-  //       ],
-  //     ),
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         Row(
-  //           children: [
-  //             Container(
-  //               padding: const EdgeInsets.all(8),
-  //               decoration: BoxDecoration(
-  //                 color: Colors.orange.withOpacity(0.1),
-  //                 borderRadius: BorderRadius.circular(8),
-  //               ),
-  //               child: const Icon(Icons.flash_on, color: Colors.orange, size: 20),
-  //             ),
-  //             const SizedBox(width: 12),
-  //             const Text(
-  //               'Quick Actions',
-  //               style: TextStyle(
-  //                 fontSize: 18,
-  //                 fontWeight: FontWeight.bold,
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //         const SizedBox(height: 16),
-  //         Row(
-  //           children: [
-  //             Expanded(
-  //               child: _buildQuickActionButton(
-  //                 '+15 min',
-  //                 Icons.add,
-  //                 Colors.green,
-  //                 () => _adjustTime(15),
-  //               ),
-  //             ),
-  //             const SizedBox(width: 12),
-  //             Expanded(
-  //               child: _buildQuickActionButton(
-  //                 '+30 min',
-  //                 Icons.add,
-  //                 Colors.green,
-  //                 () => _adjustTime(30),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //         const SizedBox(height: 12),
-  //         Row(
-  //           children: [
-  //             Expanded(
-  //               child: _buildQuickActionButton(
-  //                 '-15 min',
-  //                 Icons.remove,
-  //                 Colors.red,
-  //                 () => _adjustTime(-15),
-  //               ),
-  //             ),
-  //             const SizedBox(width: 12),
-  //             Expanded(
-  //               child: _buildQuickActionButton(
-  //                 '-30 min',
-  //                 Icons.remove,
-  //                 Colors.red,
-  //                 () => _adjustTime(-30),
-  //               ),
-  //             ),
-  //           ],
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-
-  // Widget _buildQuickActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
-  //   return ElevatedButton.icon(
-  //     onPressed: onTap,
-  //     icon: Icon(icon, size: 18),
-  //     label: Text(label),
-  //     style: ElevatedButton.styleFrom(
-  //       backgroundColor: color,
-  //       foregroundColor: Colors.white,
-  //       padding: const EdgeInsets.symmetric(vertical: 12),
-  //       shape: RoundedRectangleBorder(
-  //         borderRadius: BorderRadius.circular(12),
-  //       ),
-  //     ),
-  //   );
-  // }
 
   Widget _buildResetButton() {
     return SizedBox(
@@ -451,7 +375,12 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
 
     try {
       await _screenTimeService.updateScreenTimeLimit(widget.childId, _newLimit);
-      
+
+      // Update current limit after successful save
+      setState(() {
+        _currentLimit = _newLimit;
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -474,37 +403,14 @@ class _ScreenTimeManagerScreenState extends State<ScreenTimeManagerScreen> {
     }
   }
 
-  Future<void> _adjustTime(int minutes) async {
-    try {
-      await _screenTimeService.addScreenTime(widget.childId, minutes);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${minutes > 0 ? 'Added' : 'Removed'} ${minutes.abs()} minutes'),
-            backgroundColor: AppTheme.seaGreen,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _showResetDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Reset Screen Time?'),
-        content: const Text('This will reset today\'s screen time to 0 minutes. This action cannot be undone.'),
+        content: const Text(
+            'This will reset today\'s screen time to 0 minutes. This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
