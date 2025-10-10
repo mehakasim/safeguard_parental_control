@@ -88,7 +88,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
                   Navigator.of(context).pushNamed('/admin-login');
                 },
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 16),
 
               // Footer
               Text(
