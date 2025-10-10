@@ -1,4 +1,5 @@
 // lib/screens/dashboard/child/child_home_tab.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/app_provider.dart';
@@ -16,18 +17,27 @@ class ChildHomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, child) {
-        final screenTime = childData['screenTime'] ?? 0;
-        final limit = childData['screenTimeLimit'] ?? 120;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('children')
+          .doc(childData['id'])
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+        final screenTime = data['screenTime'] ?? 0;
+        final limit = data['screenTimeLimit'] ?? 120;
         final remaining = (limit - screenTime).clamp(0, limit);
         final percentage = (screenTime / limit * 100).clamp(0, 100);
-        final restrictions = childData['restrictions'] as List? ?? [];
+        final restrictions = data['restrictions'] as List? ?? [];
+
+        final provider = Provider.of<AppProvider>(context, listen: false);
 
         return RefreshIndicator(
-          onRefresh: () async {
-            onRefresh();
-          },
+          onRefresh: () async => onRefresh(),
           child: CustomScrollView(
             slivers: [
               // Welcome Message
@@ -62,7 +72,8 @@ class ChildHomeTab extends StatelessWidget {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: (percentage > 100 ? Colors.red : Colors.purple).withOpacity(0.3),
+                          color: (percentage > 100 ? Colors.red : Colors.purple)
+                              .withOpacity(0.3),
                           blurRadius: 15,
                           offset: const Offset(0, 8),
                         ),
@@ -85,7 +96,9 @@ class ChildHomeTab extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  percentage > 100 ? 'Over limit!' : 'Keep it balanced!',
+                                  percentage > 100
+                                      ? 'Over limit!'
+                                      : 'Keep it balanced!',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
@@ -111,7 +124,10 @@ class ChildHomeTab extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildTimeBox('Used', provider.formatScreenTime(screenTime), Icons.phone_android),
+                            _buildTimeBox(
+                                'Used',
+                                provider.formatScreenTime(screenTime),
+                                Icons.phone_android),
                             Container(
                               height: 50,
                               width: 2,
@@ -120,7 +136,10 @@ class ChildHomeTab extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(1),
                               ),
                             ),
-                            _buildTimeBox('Left', provider.formatScreenTime(remaining), Icons.hourglass_bottom),
+                            _buildTimeBox(
+                                'Left',
+                                provider.formatScreenTime(remaining),
+                                Icons.hourglass_bottom),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -130,7 +149,8 @@ class ChildHomeTab extends StatelessWidget {
                             value: (percentage / 100).clamp(0.0, 1.0),
                             minHeight: 14,
                             backgroundColor: Colors.white.withOpacity(0.3),
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.white),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -246,11 +266,23 @@ class ChildHomeTab extends StatelessWidget {
 
   Widget _buildRestrictionsGrid(List restrictions) {
     final allRestrictions = {
-      'social_media': {'name': 'Social Media', 'icon': '📱', 'color': Colors.blue},
+      'social_media': {
+        'name': 'Social Media',
+        'icon': '📱',
+        'color': Colors.blue
+      },
       'gaming': {'name': 'Gaming', 'icon': '🎮', 'color': Colors.purple},
       'shopping': {'name': 'Shopping', 'icon': '🛒', 'color': Colors.orange},
-      'adult_content': {'name': 'Adult Content', 'icon': '🚫', 'color': Colors.red},
-      'violence': {'name': 'Violence', 'icon': '⚠️', 'color': Colors.deepOrange},
+      'adult_content': {
+        'name': 'Adult Content',
+        'icon': '🚫',
+        'color': Colors.red
+      },
+      'violence': {
+        'name': 'Violence',
+        'icon': '⚠️',
+        'color': Colors.deepOrange
+      },
       'ads': {'name': 'Ads', 'icon': '📢', 'color': Colors.amber},
     };
 
@@ -260,7 +292,7 @@ class ChildHomeTab extends StatelessWidget {
       children: restrictions.map((restrictionId) {
         final restriction = allRestrictions[restrictionId];
         if (restriction == null) return const SizedBox.shrink();
-        
+
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
@@ -293,7 +325,8 @@ class ChildHomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildTipCard(String title, String description, IconData icon, Color color) {
+  Widget _buildTipCard(
+      String title, String description, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

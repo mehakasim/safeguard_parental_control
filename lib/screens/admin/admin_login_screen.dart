@@ -184,7 +184,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   // Back to Main Login
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      Navigator.of(context).pushReplacementNamed('/user-type-selection');
                     },
                     child: const Text('Back to Main Login'),
                   ),

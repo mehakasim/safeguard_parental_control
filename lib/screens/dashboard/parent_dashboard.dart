@@ -212,7 +212,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
       await Provider.of<AppProvider>(context, listen: false).logout();
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
-          '/',
+          '/user-type-selection',
           (route) => false,
         );
       }

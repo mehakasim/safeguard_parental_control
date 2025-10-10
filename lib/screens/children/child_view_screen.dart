@@ -197,6 +197,7 @@ class _ChildViewScreenState extends State<ChildViewScreen> {
         final limit = currentChild['screenTimeLimit'] ?? 120;
         final restrictions = currentChild['restrictions'] as List? ?? [];
         final isOverLimit = screenTime > limit;
+        final isActive = currentChild['isActive'] ?? true;
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -549,8 +550,8 @@ class _ChildViewScreenState extends State<ChildViewScreen> {
           child: _buildStatBox(
             icon: Icons.check_circle_rounded,
             label: 'Status',
-            value: 'Active',
-            color: Colors.green,
+            value: child['isActive'] == true ? 'Active' : 'Inactive',
+            color: child['isActive'] == true ? Colors.green : Colors.red,
           ),
         ),
       ],
@@ -850,8 +851,8 @@ class _ChildViewScreenState extends State<ChildViewScreen> {
           _buildStatusRow(
             Icons.check_circle_rounded,
             'Account Status',
-            'Active',
-            Colors.green,
+            child['isActive'] == true ? 'Active' : 'Inactive',
+            child['isActive'] == true ? Colors.green : Colors.red,
           ),
           const Divider(height: 32),
           _buildStatusRow(

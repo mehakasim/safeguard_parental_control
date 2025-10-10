@@ -174,7 +174,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       await Provider.of<AdminProvider>(context, listen: false).logout();
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
-          '/admin-login',
+          '/user-type-selection',
           (route) => false,
         );
       }

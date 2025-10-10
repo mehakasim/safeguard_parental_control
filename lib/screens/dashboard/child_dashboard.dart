@@ -120,7 +120,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
       await provider.logout();
 
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+        Navigator.of(context).pushNamedAndRemoveUntil('/user-type-selection', (route) => false);
       }
     }
   }
