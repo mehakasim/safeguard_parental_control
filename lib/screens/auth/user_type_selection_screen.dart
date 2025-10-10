@@ -17,18 +17,18 @@ class UserTypeSelectionScreen extends StatelessWidget {
             children: [
               // Logo/Icon
               Container(
-                padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: AppTheme.seaGreen.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.shield_rounded,
-                  size: 100,
+                  size: 80,
                   color: AppTheme.seaGreen,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
 
               // App Title
               const Text(
@@ -51,7 +51,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
                   color: AppTheme.textGrey,
                 ),
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 30),
 
               // Selection Title
               const Text(
@@ -62,7 +62,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
                   color: AppTheme.textBlack,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 30),
 
               // User Option Card
               _buildOptionCard(
@@ -88,7 +88,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
                   Navigator.of(context).pushNamed('/admin-login');
                 },
               ),
-              const SizedBox(height: 60),
+              const SizedBox(height: 20),
 
               // Footer
               Text(
