@@ -101,7 +101,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
             child: const Text('Cancel'),
           ),
           SizedBox(
-            width: 180,
+            width: 150,
             child: ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(

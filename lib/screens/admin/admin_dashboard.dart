@@ -1,30 +1,28 @@
-// lib/screens/dashboard/parent_dashboard.dart
+// lib/screens/admin/admin_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/app_provider.dart';
+import '../../providers/admin_provider.dart';
 import '../../utils/theme.dart';
-import '../children/add_child_screen.dart';
-import 'widgets/dashboard_overview.dart';
-import 'widgets/children_tab.dart';
-import 'widgets/analytics_tab.dart';
-import 'widgets/settings_tab.dart';
+import 'widgets/admin_overview_tab.dart';
+import 'widgets/admin_parents_tab.dart';
+import 'widgets/admin_children_tab.dart';
+import 'widgets/admin_settings_tab.dart';
 
-class ParentDashboard extends StatefulWidget {
-  const ParentDashboard({Key? key}) : super(key: key);
+class AdminDashboard extends StatefulWidget {
+  const AdminDashboard({Key? key}) : super(key: key);
 
   @override
-  State<ParentDashboard> createState() => _ParentDashboardState();
+  State<AdminDashboard> createState() => _AdminDashboardState();
 }
 
-class _ParentDashboardState extends State<ParentDashboard> {
+class _AdminDashboardState extends State<AdminDashboard> {
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    // Load children when dashboard opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AppProvider>(context, listen: false).refreshChildren();
+      Provider.of<AdminProvider>(context, listen: false).loadStatistics();
     });
   }
 
@@ -36,35 +34,34 @@ class _ParentDashboardState extends State<ParentDashboard> {
       body: IndexedStack(
         index: _currentIndex,
         children: const [
-          DashboardOverview(),
-          ChildrenTab(),
-          // AnalyticsTab(),
-          SettingsTab(),
+          AdminOverviewTab(),
+          AdminParentsTab(),
+          AdminChildrenTab(),
+          AdminSettingsTab(),
         ],
       ),
       bottomNavigationBar: _buildBottomNavBar(),
-      floatingActionButton: _buildFAB(),
     );
   }
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       automaticallyImplyLeading: false,
-      title: Consumer<AppProvider>(
+      title: Consumer<AdminProvider>(
         builder: (context, provider, child) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'SafeGuard',
+                'SafeGuard Admin',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                'Welcome, ${provider.currentUserName ?? 'Parent'}',
+                'Welcome, ${provider.adminName ?? 'Admin'}',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.normal,
@@ -77,26 +74,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_outlined),
+          icon: const Icon(Icons.refresh),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Notifications coming soon!')),
-            );
+            Provider.of<AdminProvider>(context, listen: false).loadStatistics();
           },
         ),
         PopupMenuButton<String>(
           onSelected: _handleMenuAction,
           itemBuilder: (context) => [
-            // const PopupMenuItem(
-            //   value: 'profile',
-            //   child: Row(
-            //     children: [
-            //       Icon(Icons.person, color: AppTheme.seaGreen),
-            //       SizedBox(width: 8),
-            //       Text('Profile'),
-            //     ],
-            //   ),
-            // ),
             const PopupMenuItem(
               value: 'logout',
               child: Row(
@@ -132,13 +117,13 @@ class _ParentDashboardState extends State<ParentDashboard> {
           label: 'Overview',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.family_restroom),
+          icon: Icon(Icons.people),
+          label: 'Parents',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.child_care),
           label: 'Children',
         ),
-        // BottomNavigationBarItem(
-        //   icon: Icon(Icons.analytics),
-        //   label: 'Analytics',
-        // ),
         BottomNavigationBarItem(
           icon: Icon(Icons.settings),
           label: 'Settings',
@@ -147,32 +132,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
   }
 
-  Widget? _buildFAB() {
-    return _currentIndex == 1
-        ? FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddChildScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Add Child'),
-            backgroundColor: AppTheme.seaGreen,
-            foregroundColor: Colors.white,
-          )
-        : null;
-  }
-
   void _handleMenuAction(String value) async {
     if (value == 'logout') {
       await _handleLogout();
-    } else if (value == 'profile') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile settings coming soon!')),
-      );
     }
   }
 
@@ -209,10 +171,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
 
     if (confirmed == true && mounted) {
-      await Provider.of<AppProvider>(context, listen: false).logout();
+      await Provider.of<AdminProvider>(context, listen: false).logout();
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
-          '/',
+          '/admin-login',
           (route) => false,
         );
       }
