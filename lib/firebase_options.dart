@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'safeguard-parental-control.firebasestorage.app',
     measurementId: 'G-R3PPGJXRLN',
   );
+
 }

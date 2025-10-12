@@ -1,27 +1,31 @@
-// lib/screens/children/add_child_screen.dart
+// lib/screens/children/edit_child_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../utils/theme.dart';
 
-class AddChildScreen extends StatefulWidget {
-  const AddChildScreen({Key? key}) : super(key: key);
+class EditChildScreen extends StatefulWidget {
+  final Map<String, dynamic> child;
+
+  const EditChildScreen({
+    Key? key,
+    required this.child,
+  }) : super(key: key);
 
   @override
-  State<AddChildScreen> createState() => _AddChildScreenState();
+  State<EditChildScreen> createState() => _EditChildScreenState();
 }
 
-class _AddChildScreenState extends State<AddChildScreen> {
+class _EditChildScreenState extends State<EditChildScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _ageController = TextEditingController();
-
-  bool _isPasswordVisible = false;
-  double _screenTimeLimit = 120; // Default 2 hours
+  
+  double _screenTimeLimit = 120;
   List<String> _selectedRestrictions = [];
-
+  bool _isLoading = false;
+  
   final List<Map<String, dynamic>> _restrictionOptions = [
     {
       'id': 'adult_content',
@@ -68,10 +72,19 @@ class _AddChildScreenState extends State<AddChildScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _nameController.text = widget.child['name'] ?? '';
+    _emailController.text = widget.child['email'] ?? '';
+    _ageController.text = widget.child['age']?.toString() ?? '';
+    _screenTimeLimit = (widget.child['screenTimeLimit'] ?? 120).toDouble();
+    _selectedRestrictions = List<String>.from(widget.child['restrictions'] ?? []);
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
     _ageController.dispose();
     super.dispose();
   }
@@ -83,9 +96,6 @@ class _AddChildScreenState extends State<AddChildScreen> {
     if (value.trim().length < 2) {
       return 'Name must be at least 2 characters';
     }
-    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
-      return 'Name can only contain letters and spaces';
-    }
     return null;
   }
 
@@ -96,16 +106,6 @@ class _AddChildScreenState extends State<AddChildScreen> {
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'Please enter a valid email address';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
     }
     return null;
   }
@@ -124,68 +124,75 @@ class _AddChildScreenState extends State<AddChildScreen> {
     return null;
   }
 
-  void _applyAgeBasedDefaults(int age) {
-    // Apply recommended restrictions based on age
-    setState(() {
-      if (age >= 3 && age <= 8) {
-        _selectedRestrictions = [
-          'adult_content',
-          'violence',
-          'social_media',
-          'shopping',
-          'ads'
-        ];
-        _screenTimeLimit = 60; // 1 hour
-      } else if (age >= 9 && age <= 12) {
-        _selectedRestrictions = [
-          'adult_content',
-          'violence',
-          'shopping',
-          'ads'
-        ];
-        _screenTimeLimit = 120; // 2 hours
-      } else if (age >= 13 && age <= 15) {
-        _selectedRestrictions = ['adult_content', 'violence', 'shopping'];
-        _screenTimeLimit = 180; // 3 hours
-      } else {
-        _selectedRestrictions = ['adult_content', 'violence'];
-        _screenTimeLimit = 240; // 4 hours
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Applied age-appropriate settings for $age years old'),
-        backgroundColor: AppTheme.seaGreen,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _handleAddChild() async {
+  Future<void> _handleUpdateChild() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final appProvider = Provider.of<AppProvider>(context, listen: false);
+    setState(() => _isLoading = true);
 
-    final success = await appProvider.addChildAccount(
-      childName: _nameController.text.trim(),
-      childEmail: _emailController.text.trim(),
-      password: _passwordController.text,
-      age: int.parse(_ageController.text),
-      screenTimeLimit: _screenTimeLimit.toInt(),
-      restrictions: _selectedRestrictions,
-    );
-
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_nameController.text} added successfully!'),
-          backgroundColor: AppTheme.seaGreen,
-        ),
+    try {
+      final appProvider = Provider.of<AppProvider>(context, listen: false);
+      
+      final success = await appProvider.updateChild(
+        childId: widget.child['id'],
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        age: int.parse(_ageController.text),
+        screenTimeLimit: _screenTimeLimit.toInt(),
+        restrictions: _selectedRestrictions,
       );
-      Navigator.pop(context);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text('${_nameController.text}\'s profile updated successfully'),
+              ],
+            ),
+            backgroundColor: AppTheme.seaGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pop(context);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Failed to update profile. Please try again.'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Error: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -194,73 +201,73 @@ class _AddChildScreenState extends State<AddChildScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Add Child'),
+        title: const Text('Edit Child Profile'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: () {
-              _showHelpDialog();
-            },
-          ),
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          child: Consumer<AppProvider>(
-            builder: (context, appProvider, child) {
-              return Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header Section
-                    _buildHeaderSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Basic Information
-                    _buildSectionTitle('Basic Information', Icons.person),
-                    const SizedBox(height: 16),
-                    _buildBasicInfoSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Screen Time Control
-                    _buildSectionTitle('Screen Time Control', Icons.timer),
-                    const SizedBox(height: 16),
-                    _buildScreenTimeSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Content Restrictions
-                    _buildSectionTitle('Content Restrictions', Icons.security),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Select what content to block for ${_nameController.text.isEmpty ? "your child" : _nameController.text}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textGrey,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildRestrictionsSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Error Message
-                    if (appProvider.errorMessage != null)
-                      _buildErrorMessage(appProvider.errorMessage!),
-
-                    // Add Child Button
-                    _buildAddButton(appProvider),
-
-                    const SizedBox(height: 24),
-                  ],
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Section
+                _buildHeaderSection(),
+                
+                const SizedBox(height: 32),
+                
+                // Basic Information
+                _buildSectionTitle('Basic Information', Icons.person),
+                const SizedBox(height: 16),
+                _buildBasicInfoSection(),
+                
+                const SizedBox(height: 32),
+                
+                // Screen Time Control
+                _buildSectionTitle('Screen Time Control', Icons.timer),
+                const SizedBox(height: 16),
+                _buildScreenTimeSection(),
+                
+                const SizedBox(height: 32),
+                
+                // Content Restrictions
+                _buildSectionTitle('Content Restrictions', Icons.security),
+                const SizedBox(height: 8),
+                Text(
+                  'Select what content to block for ${_nameController.text.isEmpty ? "your child" : _nameController.text}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textGrey,
+                  ),
                 ),
-              );
-            },
+                const SizedBox(height: 16),
+                _buildRestrictionsSection(),
+                
+                const SizedBox(height: 32),
+                
+                // Update Button
+                _buildUpdateButton(),
+                
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -285,11 +292,11 @@ class _AddChildScreenState extends State<AddChildScreen> {
           width: 1,
         ),
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
-            height: 80,
-            width: 80,
+            height: 60,
+            width: 60,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -297,7 +304,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   AppTheme.seaGreen.withOpacity(0.8),
                 ],
               ),
-              borderRadius: BorderRadius.circular(40),
+              borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.seaGreen.withOpacity(0.3),
@@ -306,29 +313,39 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.child_care,
-              size: 40,
-              color: Colors.white,
+            child: Center(
+              child: Text(
+                widget.child['name']?.toString().substring(0, 1).toUpperCase() ?? '?',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Add New Child',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textBlack,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Create a safe digital account for your child',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textGrey,
-              height: 1.4,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.child['name'] ?? 'Unknown',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textBlack,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Editing profile',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -376,7 +393,6 @@ class _AddChildScreenState extends State<AddChildScreen> {
       ),
       child: Column(
         children: [
-          // Child Name
           TextFormField(
             controller: _nameController,
             textCapitalization: TextCapitalization.words,
@@ -399,61 +415,34 @@ class _AddChildScreenState extends State<AddChildScreen> {
               ),
             ),
           ),
-
+          
           const SizedBox(height: 20),
-
-          // Age with auto-apply button
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _ageController,
-                  keyboardType: TextInputType.number,
-                  validator: _validateAge,
-                  decoration: InputDecoration(
-                    labelText: 'Age',
-                    hintText: 'Enter age',
-                    prefixIcon: Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.seaGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.cake_outlined,
-                        color: AppTheme.seaGreen,
-                        size: 20,
-                      ),
-                    ),
-                  ),
+          
+          TextFormField(
+            controller: _ageController,
+            keyboardType: TextInputType.number,
+            validator: _validateAge,
+            decoration: InputDecoration(
+              labelText: 'Age',
+              hintText: 'Enter age',
+              prefixIcon: Container(
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.seaGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.cake_outlined,
+                  color: AppTheme.seaGreen,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  if (_ageController.text.isNotEmpty) {
-                    final age = int.tryParse(_ageController.text);
-                    if (age != null && age >= 3 && age <= 18) {
-                      _applyAgeBasedDefaults(age);
-                    }
-                  }
-                },
-                icon: const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('Auto'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.seaGreen,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                ),
-              ),
-            ],
+            ),
           ),
-
+          
           const SizedBox(height: 20),
-
-          // Email
+          
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
@@ -461,7 +450,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
             validator: _validateEmail,
             decoration: InputDecoration(
               labelText: 'Email Address',
-              hintText: 'Create an email for your child',
+              hintText: 'child@example.com',
               prefixIcon: Container(
                 margin: const EdgeInsets.all(12),
                 padding: const EdgeInsets.all(8),
@@ -477,45 +466,6 @@ class _AddChildScreenState extends State<AddChildScreen> {
               ),
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // Password
-          TextFormField(
-            controller: _passwordController,
-            obscureText: !_isPasswordVisible,
-            validator: _validatePassword,
-            decoration: InputDecoration(
-              labelText: 'Password',
-              hintText: 'Set a password for your child',
-              prefixIcon: Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.seaGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.lock_outline,
-                  color: AppTheme.seaGreen,
-                  size: 20,
-                ),
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _isPasswordVisible
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  color: AppTheme.textGrey,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _isPasswordVisible = !_isPasswordVisible;
-                  });
-                },
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -524,7 +474,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
   Widget _buildScreenTimeSection() {
     final hours = _screenTimeLimit ~/ 60;
     final minutes = _screenTimeLimit % 60;
-
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -552,8 +502,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppTheme.seaGreen.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -617,7 +566,7 @@ class _AddChildScreenState extends State<AddChildScreen> {
     return Column(
       children: _restrictionOptions.map((restriction) {
         final isSelected = _selectedRestrictions.contains(restriction['id']);
-
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
@@ -681,61 +630,22 @@ class _AddChildScreenState extends State<AddChildScreen> {
     );
   }
 
-  Widget _buildErrorMessage(String message) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.red.shade100,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              Icons.error_outline,
-              color: Colors.red.shade700,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: Colors.red.shade700,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddButton(AppProvider appProvider) {
+  Widget _buildUpdateButton() {
     return SizedBox(
       height: 56,
       child: ElevatedButton(
-        onPressed: appProvider.isLoading ? null : _handleAddChild,
+        onPressed: _isLoading ? null : _handleUpdateChild,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.seaGreen,
           foregroundColor: Colors.white,
           disabledBackgroundColor: Colors.grey.shade300,
-          elevation: appProvider.isLoading ? 0 : 3,
+          elevation: _isLoading ? 0 : 3,
           shadowColor: AppTheme.seaGreen.withOpacity(0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        child: appProvider.isLoading
+        child: _isLoading
             ? const SizedBox(
                 height: 20,
                 width: 20,
@@ -747,10 +657,10 @@ class _AddChildScreenState extends State<AddChildScreen> {
             : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_circle_outline, size: 24),
+                  Icon(Icons.save, size: 24),
                   SizedBox(width: 12),
                   Text(
-                    'Add Child',
+                    'Save Changes',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -758,64 +668,6 @@ class _AddChildScreenState extends State<AddChildScreen> {
                   ),
                 ],
               ),
-      ),
-    );
-  }
-
-  void _showHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.help_outline, color: AppTheme.seaGreen),
-            SizedBox(width: 8),
-            Text('How to Add a Child'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '1. Enter your child\'s basic information',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '2. Set a daily screen time limit',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '3. Select content restrictions',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 8),
-            Text(
-              '4. Click "Add Child" to create the account',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 16),
-            Text(
-              '💡 Tip: Use the "Auto" button next to age to apply recommended settings automatically!',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.textGrey,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Got it!',
-              style: TextStyle(color: AppTheme.seaGreen),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,7 +1,13 @@
+// lib/screens/dashboard/child_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:safeguard_parental_control/services/screen_time_service.dart';
 import '../../providers/app_provider.dart';
 import '../../utils/theme.dart';
+import 'child/child_home_tab.dart';
+import 'child/child_apps_tab.dart';
+import 'child/child_settings_screen.dart';
 
 class ChildDashboard extends StatefulWidget {
   const ChildDashboard({Key? key}) : super(key: key);
@@ -11,540 +17,408 @@ class ChildDashboard extends StatefulWidget {
 }
 
 class _ChildDashboardState extends State<ChildDashboard> {
-  int _currentIndex = 0;
+  int _selectedIndex = 0;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _screenTimeService = ScreenTimeService();
+  
+  Map<String, dynamic>? _childData;
+  bool _isLoading = true;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Consumer<AppProvider>(
-          builder: (context, provider, child) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'My SafeGuard',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Hi, ${provider.currentUserName ?? 'there'}!',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'logout') {
-                await _handleLogout();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Logout'),
-                  ],
-                ),
-              ),
-            ],
+  void initState() {
+    super.initState();
+    _loadChildData();
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    if (provider.currentUserId != null) {
+      _screenTimeService.startTracking(provider.currentUserId!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _screenTimeService.stopTracking();
+    super.dispose();
+  }
+
+  Future<void> _loadChildData() async {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    if (provider.currentUserId == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final doc = await _firestore
+          .collection('children')
+          .doc(provider.currentUserId)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          _childData = doc.data();
+          _childData!['id'] = doc.id;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: const [
-          _ChildHomeTab(),
-          _ScreenTimeTab(),
-          _ActivitiesTab(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        selectedItemColor: AppTheme.seaGreen,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.access_time),
-            label: 'Screen Time',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.apps),
-            label: 'Activities',
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    }
   }
 
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.logout, color: Colors.red.shade700),
+            ),
+            const SizedBox(width: 12),
+            const Text('Logout'),
+          ],
+        ),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Logout'),
-          ),
+          SizedBox(
+            width: 150,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Logout'),
+            ),
+          )
         ],
       ),
     );
 
     if (confirmed == true && mounted) {
-      await Provider.of<AppProvider>(context, listen: false).logout();
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      await provider.logout();
+
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/',
-          (route) => false,
-        );
+        Navigator.of(context).pushNamedAndRemoveUntil('/user-type-selection', (route) => false);
       }
     }
   }
-}
-
-// Child Home Tab
-class _ChildHomeTab extends StatelessWidget {
-  const _ChildHomeTab();
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Welcome Card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.seaGreen,
-                  AppTheme.seaGreen.withOpacity(0.8),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '🌟 Welcome Back!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Your digital space is safe and ready for you to explore!',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    '🛡️ Protected by SafeGuard',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Quick Stats
-          Row(
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Time Left Today',
-                  '1h 30m',
-                  Icons.timer,
-                  Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  'Apps Used',
-                  '5',
-                  Icons.apps,
-                  Colors.blue,
-                ),
+              CircularProgressIndicator(color: AppTheme.seaGreen),
+              const SizedBox(height: 16),
+              const Text(
+                'Loading your profile...',
+                style: TextStyle(color: AppTheme.textGrey, fontSize: 14),
               ),
             ],
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Safety Reminders
-          const Text(
-            'Safety Reminders',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          _buildSafetyCard(
-            '🔒 Privacy First',
-            'Never share personal information with strangers online.',
-            Colors.purple,
-          ),
-          
-          _buildSafetyCard(
-            '🤝 Be Kind',
-            'Always treat others with respect and kindness online.',
-            Colors.orange,
-          ),
-          
-          _buildSafetyCard(
-            '👨‍👩‍👧‍👦 Ask Parents',
-            'If something seems wrong or makes you uncomfortable, tell your parents.',
-            Colors.red,
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Fun Activities Section
-          const Text(
-            'Recommended for You',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          _buildActivityCard(
-            '📚 Educational Games',
-            'Learn while having fun with age-appropriate games',
-            Icons.school,
-            AppTheme.seaGreen,
-          ),
-          
-          _buildActivityCard(
-            '🎨 Creative Apps',
-            'Express your creativity with drawing and design apps',
-            Icons.palette,
-            Colors.purple,
-          ),
-          
-          _buildActivityCard(
-            '🎵 Music & Stories',
-            'Listen to your favorite songs and audio stories',
-            Icons.headphones,
-            Colors.orange,
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
+    }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textGrey,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSafetyCard(String title, String description, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border(left:BorderSide(width: 4, color: color)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppTheme.textGrey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityCard(String title, String description, IconData icon, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
+    if (_childData == null) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
                   ),
+                  child: Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textGrey,
-                  ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Unable to load profile',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textBlack),
                 ),
-              ],
-            ),
-          ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: AppTheme.textGrey,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Screen Time Tab
-class _ScreenTimeTab extends StatelessWidget {
-  const _ScreenTimeTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Screen Time',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 24),
-          Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 120,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Screen Time Tracking',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textGrey,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Your screen time details will appear here.',
+                const SizedBox(height: 8),
+                const Text(
+                  'Please check your connection and try again',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppTheme.textGrey,
+                  style: TextStyle(fontSize: 14, color: AppTheme.textGrey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadChildData,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.seaGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: _buildAppBar(),
+      body: SafeArea(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            ChildHomeTab(
+              childData: _childData!,
+              onRefresh: _loadChildData,
+            ),
+            ChildAppsTab(
+              restrictions: _childData!['restrictions'] ?? [],
+            ),
+            const ChildSettingsScreen(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      title: Consumer<AppProvider>(
+        builder: (context, provider, child) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'SafeGuard',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Hi, ${_childData?['name'] ?? 'User'}!',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline),
+          onPressed: _showHelpDialog,
+        ),
+        PopupMenuButton<String>(
+          onSelected: _handleMenuAction,
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'about',
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: AppTheme.seaGreen),
+                  SizedBox(width: 8),
+                  Text('About'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'logout',
+              child: Row(
+                children: [
+                  Icon(Icons.logout, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Logout'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _handleMenuAction(String value) {
+    if (value == 'logout') {
+      _handleLogout();
+    } else if (value == 'about') {
+      _showAboutDialog();
+    }
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.help_outline, color: Colors.blue.shade700),
+            ),
+            const SizedBox(width: 12),
+            const Text('Help'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Need help? Here are some tips:', style: TextStyle(fontWeight: FontWeight.w600)),
+            SizedBox(height: 12),
+            Text('• Check your screen time in the Home tab'),
+            Text('• Find safe apps in the Apps tab'),
+            Text('• View your profile in Settings'),
+            SizedBox(height: 12),
+            Text('If you need more help, ask your parent!', style: TextStyle(fontStyle: FontStyle.italic)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it!', style: TextStyle(color: AppTheme.seaGreen)),
           ),
         ],
       ),
     );
   }
-}
 
-// Activities Tab
-class _ActivitiesTab extends StatelessWidget {
-  const _ActivitiesTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Activities',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.seaGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.shield_rounded, color: AppTheme.seaGreen, size: 24),
             ),
-          ),
-          SizedBox(height: 24),
-          Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.apps,
-                  size: 120,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Your Activities',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textGrey,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Your app usage and activities will be shown here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppTheme.textGrey,
-                  ),
-                ),
-              ],
-            ),
+            const SizedBox(width: 12),
+            const Text('About SafeGuard'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('SafeGuard helps keep you safe while exploring the digital world.', style: TextStyle(fontSize: 16)),
+            SizedBox(height: 16),
+            Text('Features:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            SizedBox(height: 8),
+            Text('• Screen time tracking'),
+            Text('• Safe content filtering'),
+            Text('• Educational resources'),
+            Text('• Fun and safe apps'),
+            SizedBox(height: 16),
+            Text('Version: 1.0.0', style: TextStyle(color: AppTheme.textGrey, fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: AppTheme.seaGreen)),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2)),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(Icons.home_rounded, 'Home', 0),
+              _buildNavItem(Icons.apps_rounded, 'Apps', 1),
+              _buildNavItem(Icons.settings_rounded, 'Settings', 2),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    final isSelected = _selectedIndex == index;
+    return InkWell(
+      onTap: () => setState(() => _selectedIndex = index),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.seaGreen.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isSelected ? AppTheme.seaGreen : Colors.grey, size: 26),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected ? AppTheme.seaGreen : Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

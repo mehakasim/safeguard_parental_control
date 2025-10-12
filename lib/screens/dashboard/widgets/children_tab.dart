@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../providers/app_provider.dart';
 import '../../../utils/theme.dart';
 import '../../children/add_child_screen.dart';
-import 'child_quick_actions.dart';
+import '../../children/edit_child_screen.dart';
+import '../../children/child_view_screen.dart';
+import '../../parent/screen_time_manager_screen.dart';
 
 class ChildrenTab extends StatelessWidget {
   const ChildrenTab({Key? key}) : super(key: key);
@@ -35,8 +37,8 @@ class ChildrenTab extends StatelessWidget {
         return Column(
           children: [
             // Header with stats
-            _buildHeaderCard(children),
-            
+            _buildHeaderCard(children, provider),
+
             // Children list
             Expanded(
               child: RefreshIndicator(
@@ -62,9 +64,13 @@ class ChildrenTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderCard(List<Map<String, dynamic>> children) {
-    final activeToday = children.where((c) => (c['screenTime'] ?? 0) > 0).length;
-    
+  Widget _buildHeaderCard(
+      List<Map<String, dynamic>> children, AppProvider provider) {
+    final activeToday =
+        children.where((c) => (c['screenTime'] ?? 0) > 0).length;
+    final totalScreenTime =
+        children.fold<int>(0, (sum, c) => sum + (c['screenTime'] as int? ?? 0));
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -75,10 +81,25 @@ class ChildrenTab extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.seaGreen.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.family_restroom, color: Colors.white, size: 32),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.family_restroom,
+                color: Colors.white, size: 32),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -92,6 +113,7 @@ class ChildrenTab extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   '$activeToday active today',
                   style: const TextStyle(
@@ -103,18 +125,29 @@ class ChildrenTab extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              '${(children.fold<num>(0, (sum, c) => sum + (c['screenTime'] ?? 0)) / 60).toStringAsFixed(1)}h',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            child: Column(
+              children: [
+                Text(
+                  provider.formatScreenTime(totalScreenTime),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const Text(
+                  'Total',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -185,6 +218,7 @@ class ChildrenTab extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 3,
               ),
             ),
           ],
@@ -209,13 +243,15 @@ class _ChildListItem extends StatelessWidget {
     final limit = child['screenTimeLimit'] ?? 120;
     final isOverLimit = screenTime > limit;
     final restrictions = child['restrictions'] as List? ?? [];
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: isOverLimit ? Border.all(color: Colors.red.shade300, width: 2) : null,
+        border: isOverLimit
+            ? Border.all(color: Colors.red.shade300, width: 2)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -231,24 +267,35 @@ class _ChildListItem extends StatelessWidget {
         subtitle: _buildSubtitle(screenTime, limit, restrictions),
         trailing: PopupMenuButton<String>(
           onSelected: (value) => _handleMenuAction(context, value),
+          icon: const Icon(Icons.more_vert),
           itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'view',
+              child: Row(
+                children: [
+                  Icon(Icons.visibility, color: Colors.blue, size: 20),
+                  SizedBox(width: 12),
+                  Text('View Details'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'screen_time',
+              child: Row(
+                children: [
+                  Icon(Icons.timer, color: Colors.green, size: 20),
+                  SizedBox(width: 12),
+                  Text('Manage Screen Time'),
+                ],
+              ),
+            ),
             const PopupMenuItem(
               value: 'edit',
               child: Row(
                 children: [
                   Icon(Icons.edit, color: AppTheme.seaGreen, size: 20),
-                  SizedBox(width: 8),
-                  Text('Edit'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'details',
-              child: Row(
-                children: [
-                  Icon(Icons.info, color: Colors.blue, size: 20),
-                  SizedBox(width: 8),
-                  Text('Details'),
+                  SizedBox(width: 12),
+                  Text('Edit Profile'),
                 ],
               ),
             ),
@@ -257,14 +304,22 @@ class _ChildListItem extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(Icons.delete, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
-                  Text('Delete'),
+                  SizedBox(width: 12),
+                  Text('Delete', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
           ],
         ),
-        onTap: () => ChildQuickActions.show(context, child),
+        onTap: () {
+          // Quick view on tap
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChildViewScreen(child: child),
+            ),
+          );
+        },
       ),
     );
   }
@@ -289,7 +344,7 @@ class _ChildListItem extends StatelessWidget {
             right: 0,
             top: 0,
             child: Container(
-              padding: const EdgeInsets.all(2),
+              padding: const EdgeInsets.all(4),
               decoration: const BoxDecoration(
                 color: Colors.red,
                 shape: BoxShape.circle,
@@ -395,49 +450,194 @@ class _ChildListItem extends StatelessWidget {
   void _showDeleteDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Delete Child Account'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.warning, color: Colors.red.shade700),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Delete Child Account',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
           ],
         ),
-        content: Text(
-          'Are you sure you want to delete ${child['name']}\'s account?\n\nThis will:\n• Remove their account permanently\n• Delete all their data\n• Cannot be undone',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete ${child['name']}\'s account?',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This will permanently:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDeleteWarningItem('Remove their account'),
+                  _buildDeleteWarningItem('Delete all activity data'),
+                  _buildDeleteWarningItem('Remove restriction settings'),
+                  const SizedBox(height: 8),
+                  Text(
+                    '⚠️ This action cannot be undone',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade900,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontSize: 16),
+            ),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Delete functionality coming soon')),
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (loadingContext) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
               );
+
+              final success = await provider.deleteChildComplete(
+                child['id'],
+                child['email'],
+              );
+
+              if (context.mounted) {
+                Navigator.pop(context); // Close loading
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(
+                          success ? Icons.check_circle : Icons.error,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          success
+                              ? '${child['name']}\'s account deleted'
+                              : 'Failed to delete account',
+                        ),
+                      ],
+                    ),
+                    backgroundColor: success ? AppTheme.seaGreen : Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Delete'),
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
-  
+
+  Widget _buildDeleteWarningItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(Icons.close, size: 16, color: Colors.red.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.red.shade700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleMenuAction(BuildContext context, String value) {
     switch (value) {
-      case 'edit':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Edit child feature coming soon!')),
+      case 'view':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChildViewScreen(child: child),
+          ),
         );
         break;
-      case 'details':
-        ChildQuickActions.show(context, child);
+      case 'screen_time': // ADD THIS CASE
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ScreenTimeManagerScreen(
+              childId: child['id'],
+              childName: child['name'],
+            ),
+          ),
+        );
+        break;
+      case 'edit':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditChildScreen(child: child),
+          ),
+        );
         break;
       case 'delete':
         _showDeleteDialog(context);

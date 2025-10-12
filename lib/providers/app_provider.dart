@@ -1,24 +1,29 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Temporary enum for demo purposes (replace with actual service import later)
 enum UserType { parent, child, unknown }
 
 class AppProvider with ChangeNotifier {
+  // Firebase instances
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   // Current user state
   bool _isLoggedIn = false;
   String? _currentUserId;
   String? _currentUserName;
   UserType? _userType;
-  
+
   // App state
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   // Children management (for parents)
   List<Map<String, dynamic>> _children = [];
   bool _childrenLoading = false;
-  
-  // Getters
+
+  // Getters (same as before)
   bool get isLoggedIn => _isLoggedIn;
   String? get currentUserId => _currentUserId;
   String? get currentUserName => _currentUserName;
@@ -27,112 +32,148 @@ class AppProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   List<Map<String, dynamic>> get children => _children;
   bool get childrenLoading => _childrenLoading;
-  
-  // Check if current user is parent or child
+
   bool get isParent => _userType == UserType.parent;
   bool get isChild => _userType == UserType.child;
 
-  // AUTHENTICATION METHODS
+  // Initialize Firebase Auth listener
+  void initializeAuth() {
+    _auth.authStateChanges().listen((User? user) {
+      if (user == null) {
+        _resetUserState();
+      } else {
+        _loadUserData(user);
+      }
+    });
+  }
 
-  // Universal Login (Parent or Child) - DEMO VERSION
+// LOGIN METHOD
   Future<bool> login(String email, String password) async {
     setLoading(true);
     clearError();
-    
+
     try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Demo logic to determine user type based on email
-      // In real implementation, this would come from Firebase
-      UserType detectedUserType;
-      if (email.toLowerCase().contains('parent') || 
-          email.toLowerCase().contains('mom') || 
-          email.toLowerCase().contains('dad')) {
-        detectedUserType = UserType.parent;
-      } else if (email.toLowerCase().contains('child') || 
-                 email.toLowerCase().contains('kid')) {
-        detectedUserType = UserType.child;
-      } else {
-        // Default to parent for demo
-        detectedUserType = UserType.parent;
-      }
-      
-      // Validate credentials (demo - any non-empty email/password works)
-      if (email.isNotEmpty && password.isNotEmpty && password.length >= 3) {
-        _isLoggedIn = true;
-        _currentUserId = 'demo_${detectedUserType.name}_${DateTime.now().millisecondsSinceEpoch}';
-        _currentUserName = email.split('@').first.replaceAll(RegExp(r'[0-9]'), '');
-        _userType = detectedUserType;
-        
-        // If parent, load demo children
-        if (_userType == UserType.parent) {
-          await _loadDemoChildren();
+      // Try Firebase Auth first (for parents)
+      try {
+        UserCredential result = await _auth.signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+
+        if (result.user != null) {
+          await _loadUserData(result.user!);
+          setLoading(false);
+          return true;
         }
-        
-        setLoading(false);
-        notifyListeners();
-        return true;
-      } else {
-        setError('Please enter valid credentials (password must be at least 3 characters)');
-        setLoading(false);
-        return false;
+      } on FirebaseAuthException catch (authError) {
+        // If Firebase Auth fails, check if it's a child account in Firestore
+        print('Firebase Auth failed: ${authError.code}');
+
+        if (authError.code == 'user-not-found' ||
+            authError.code == 'wrong-password' ||
+            authError.code == 'invalid-credential') {
+          // Try to find child account
+          try {
+            QuerySnapshot childQuery = await _firestore
+                .collection('children')
+                .where('email', isEqualTo: email.trim())
+                .limit(1)
+                .get();
+
+            if (childQuery.docs.isNotEmpty) {
+              Map<String, dynamic> childData =
+                  childQuery.docs.first.data() as Map<String, dynamic>;
+              String storedPasswordHash = childData['passwordHash'] ?? '';
+
+              // Compare password hashes
+              if (storedPasswordHash == _hashPassword(password)) {
+                _isLoggedIn = true;
+                _currentUserId = childQuery.docs.first.id;
+                _currentUserName = childData['name'];
+                _userType = UserType.child;
+                _children = [];
+                final userCred = await FirebaseAuth.instance.signInAnonymously();
+                final uid = userCred.user!.uid;
+
+                setLoading(false);
+                clearError();
+                notifyListeners();
+                return true;
+              } else {
+                setError('Incorrect password');
+                setLoading(false);
+                return false;
+              }
+            } else {
+              // No child found with this email either
+              print('No child account found with email: $email');
+              setError('Invalid Email or Password');
+            }
+          } catch (childError) {
+            print('Error checking child accounts: $childError');
+            setError('Error checking child account: ${childError.toString()}');
+            setLoading(false);
+            return false;
+          }
+        }
+        throw authError;
       }
+
+      setError('Login failed');
+      setLoading(false);
+      return false;
+    } on FirebaseAuthException catch (e) {
+      setError(_getFirebaseErrorMessage(e));
+      setLoading(false);
+      return false;
     } catch (e) {
       setError('Login failed: ${e.toString()}');
       setLoading(false);
       return false;
     }
   }
-  
-  // Parent Registration - DEMO VERSION
-  Future<bool> parentRegister(String name, String email, String password) async {
+
+  // PARENT REGISTER METHOD
+  Future<bool> parentRegister(
+      String name, String email, String password) async {
     setLoading(true);
     clearError();
-    
+
     try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // Validate inputs
-      if (name.trim().isEmpty) {
-        setError('Name is required');
+      UserCredential result = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      if (result.user != null) {
+        await result.user!.updateDisplayName(name);
+
+        await _firestore.collection('parents').doc(result.user!.uid).set({
+          'name': name,
+          'email': email.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'childrenCount': 0,
+        });
+
+        _isLoggedIn = true;
+        _currentUserId = result.user!.uid;
+        _currentUserName = name;
+        _userType = UserType.parent;
+        _children = [];
+
         setLoading(false);
-        return false;
+        notifyListeners();
+        return true;
       }
-      
-      if (email.trim().isEmpty || !email.contains('@')) {
-        setError('Valid email is required');
-        setLoading(false);
-        return false;
-      }
-      
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters');
-        setLoading(false);
-        return false;
-      }
-      
-      // Demo success
-      _isLoggedIn = true;
-      _currentUserId = 'demo_parent_${DateTime.now().millisecondsSinceEpoch}';
-      _currentUserName = name;
-      _userType = UserType.parent;
-      _children = []; // New parent has no children
-      
-      setLoading(false);
-      notifyListeners();
-      return true;
-    } catch (e) {
-      setError('Registration failed: ${e.toString()}');
+      return false;
+    } on FirebaseAuthException catch (e) {
+      setError(_getFirebaseErrorMessage(e));
       setLoading(false);
       return false;
     }
   }
 
-  // CHILD MANAGEMENT METHODS (For Parents Only) - DEMO VERSION
-
-  // Add Child Account
+  // ADD CHILD METHOD
   Future<bool> addChildAccount({
     required String childName,
     required String childEmail,
@@ -148,263 +189,391 @@ class AppProvider with ChangeNotifier {
 
     setLoading(true);
     clearError();
-    
+
     try {
-      // Validate inputs
-      if (childName.trim().isEmpty) {
-        setError('Child name is required');
+      // Check if email already exists
+      QuerySnapshot existingChild = await _firestore
+          .collection('children')
+          .where('email', isEqualTo: childEmail.trim())
+          .limit(1)
+          .get();
+
+      if (existingChild.docs.isNotEmpty) {
+        setError('A child account with this email already exists');
         setLoading(false);
         return false;
       }
-      
-      if (childEmail.trim().isEmpty || !childEmail.contains('@')) {
-        setError('Valid email is required');
-        setLoading(false);
-        return false;
-      }
-      
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters');
-        setLoading(false);
-        return false;
-      }
-      
-      if (age < 3 || age > 18) {
-        setError('Age must be between 3 and 18');
-        setLoading(false);
-        return false;
-      }
-      
-      // Check if email already exists in demo children
-      bool emailExists = _children.any((child) => 
-          child['email']?.toString().toLowerCase() == childEmail.toLowerCase());
-      
-      if (emailExists) {
-        setError('A child with this email already exists');
-        setLoading(false);
-        return false;
-      }
-      
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Add new child to demo list
-      final newChild = {
-        'id': 'demo_child_${DateTime.now().millisecondsSinceEpoch}',
+
+      String childId = 'child_${DateTime.now().millisecondsSinceEpoch}';
+
+      // Store password hash
+      String passwordHash = _hashPassword(password);
+      print('Creating child with password hash: $passwordHash'); // Debug
+
+      await _firestore.collection('children').doc(childId).set({
         'name': childName,
-        'email': childEmail,
+        'email': childEmail.trim(),
         'age': age,
         'parentId': _currentUserId,
         'screenTimeLimit': screenTimeLimit,
         'restrictions': restrictions,
         'isActive': true,
-        'screenTime': 0, // Today's screen time
-        'createdAt': DateTime.now().toIso8601String(),
-      };
-      
-      _children.add(newChild);
-      
+        'screenTime': 0,
+        'passwordHash': passwordHash,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await _firestore.collection('parents').doc(_currentUserId!).update({
+        'childrenCount': FieldValue.increment(1),
+      });
+
+      await _loadChildren();
       setLoading(false);
-      notifyListeners();
       return true;
     } catch (e) {
+      print('Error adding child: $e'); // Debug
       setError('Failed to add child: ${e.toString()}');
       setLoading(false);
       return false;
     }
   }
 
-  // Update Child Password - DEMO VERSION
-  Future<bool> updateChildPassword({
+  // Load children from Firestore
+  Future<void> _loadChildren() async {
+    if (!isParent || _currentUserId == null) return;
+
+    _childrenLoading = true;
+    notifyListeners();
+
+    try {
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('children')
+          .where('parentId', isEqualTo: _currentUserId)
+          .get();
+
+      _children = querySnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
+      setError('Failed to load children: ${e.toString()}');
+    }
+
+    _childrenLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> _loadUserData(User user) async {
+    try {
+      _currentUserId = user.uid;
+
+      DocumentSnapshot parentDoc =
+          await _firestore.collection('parents').doc(user.uid).get();
+
+      if (parentDoc.exists) {
+        Map<String, dynamic> parentData =
+            parentDoc.data() as Map<String, dynamic>;
+        _currentUserName = parentData['name'] ?? user.displayName;
+        _userType = UserType.parent;
+        _isLoggedIn = true;
+        await _loadChildren();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      setError('Failed to load user data: ${e.toString()}');
+    }
+  }
+
+// UPDATE CHILD METHOD
+  Future<bool> updateChild({
     required String childId,
-    required String newPassword,
-    required String parentPassword,
+    required String name,
+    required String email,
+    required int age,
+    required int screenTimeLimit,
+    required List<String> restrictions,
   }) async {
     if (!isParent || _currentUserId == null) {
-      setError('Only parents can update child passwords');
+      setError('Only parents can update child accounts');
       return false;
     }
 
     setLoading(true);
     clearError();
-    
+
     try {
-      // Validate parent password (demo - just check it's not empty)
-      if (parentPassword.isEmpty) {
-        setError('Parent password is required');
-        setLoading(false);
-        return false;
+      // Update child document in Firestore
+      await _firestore.collection('children').doc(childId).update({
+        'name': name,
+        'email': email.trim(),
+        'age': age,
+        'screenTimeLimit': screenTimeLimit,
+        'restrictions': restrictions,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update local children list
+      final childIndex = _children.indexWhere((c) => c['id'] == childId);
+      if (childIndex != -1) {
+        _children[childIndex] = {
+          ..._children[childIndex],
+          'name': name,
+          'email': email.trim(),
+          'age': age,
+          'screenTimeLimit': screenTimeLimit,
+          'restrictions': restrictions,
+        };
       }
-      
-      if (newPassword.length < 6) {
-        setError('New password must be at least 6 characters');
-        setLoading(false);
-        return false;
-      }
-      
-      // Find child in demo list
-      final childIndex = _children.indexWhere((child) => child['id'] == childId);
-      if (childIndex == -1) {
-        setError('Child not found');
-        setLoading(false);
-        return false;
-      }
-      
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Demo success (in real implementation, password would be updated in Firebase)
+
       setLoading(false);
+      notifyListeners();
       return true;
     } catch (e) {
-      setError('Failed to update password: ${e.toString()}');
+      setError('Failed to update child: ${e.toString()}');
       setLoading(false);
       return false;
     }
   }
 
-  // Delete Child Account - DEMO VERSION
-  Future<bool> deleteChildAccount({
-    required String childId,
-    required String parentPassword,
-  }) async {
+// DELETE CHILD METHOD (Basic)
+  Future<bool> deleteChild(String childId) async {
     if (!isParent || _currentUserId == null) {
       setError('Only parents can delete child accounts');
       return false;
     }
 
-    setLoading(true);
-    clearError();
-    
     try {
-      // Validate parent password
-      if (parentPassword.isEmpty) {
-        setError('Parent password is required');
-        setLoading(false);
-        return false;
-      }
-      
-      // Find child in demo list
-      final childIndex = _children.indexWhere((child) => child['id'] == childId);
-      if (childIndex == -1) {
-        setError('Child not found');
-        setLoading(false);
-        return false;
-      }
-      
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Remove child from demo list
-      _children.removeAt(childIndex);
-      
-      setLoading(false);
+      // Delete child document from Firestore
+      await _firestore.collection('children').doc(childId).delete();
+
+      // Decrement parent's children count
+      await _firestore.collection('parents').doc(_currentUserId!).update({
+        'childrenCount': FieldValue.increment(-1),
+      });
+
+      // Remove from local list
+      _children.removeWhere((child) => child['id'] == childId);
       notifyListeners();
+
+      return true;
+    } catch (e) {
+      setError('Failed to delete child: ${e.toString()}');
+      return false;
+    }
+  }
+
+// DELETE CHILD COMPLETE (with all associated data)
+  Future<bool> deleteChildComplete(String childId, String childEmail) async {
+    if (!isParent || _currentUserId == null) {
+      setError('Only parents can delete child accounts');
+      return false;
+    }
+
+    try {
+      final childRef = _firestore.collection('children').doc(childId);
+
+      try {
+        final activityLogs = await childRef.collection('activityLogs').get();
+        final batch = _firestore.batch();
+        for (var doc in activityLogs.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      } catch (e) {
+        // Continue
+      }
+
+      await childRef.delete();
+
+      await _firestore.collection('parents').doc(_currentUserId!).update({
+        'childrenCount': FieldValue.increment(-1),
+      });
+
+      await _firestore.collection('deletedAccounts').add({
+        'childEmail': childEmail,
+        'childId': childId,
+        'parentId': _currentUserId,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'reason': 'Parent deleted child account',
+      });
+
+      _children.removeWhere((child) => child['id'] == childId);
+      notifyListeners();
+
+      clearError();
       return true;
     } catch (e) {
       setError('Failed to delete child account: ${e.toString()}');
-      setLoading(false);
       return false;
     }
   }
 
-  // Load Demo Children (for testing purposes)
-  Future<void> _loadDemoChildren() async {
-    _childrenLoading = true;
-    notifyListeners();
-    
-    try {
-      // Simulate API call delay
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Demo children data
-      _children = [
-        {
-          'id': 'demo_child_1',
-          'name': 'Emma Johnson',
-          'email': 'emma.child@example.com',
-          'age': 10,
-          'parentId': _currentUserId,
-          'screenTimeLimit': 120, // 2 hours
-          'restrictions': ['adult_content', 'social_media', 'violence'],
-          'isActive': true,
-          'screenTime': 45, // 45 minutes used today
-          'createdAt': DateTime.now().subtract(const Duration(days: 30)).toIso8601String(),
-        },
-        {
-          'id': 'demo_child_2',
-          'name': 'Alex Johnson',
-          'email': 'alex.child@example.com',
-          'age': 8,
-          'parentId': _currentUserId,
-          'screenTimeLimit': 90, // 1.5 hours
-          'restrictions': ['adult_content', 'social_media', 'violence', 'shopping'],
-          'isActive': true,
-          'screenTime': 30, // 30 minutes used today
-          'createdAt': DateTime.now().subtract(const Duration(days: 15)).toIso8601String(),
-        },
-      ];
-    } catch (e) {
-      setError('Failed to load children: ${e.toString()}');
-    }
-    
-    _childrenLoading = false;
-    notifyListeners();
-  }
-
-  // Refresh Children List
-  Future<void> refreshChildren() async {
-    if (!isParent) return;
-    await _loadDemoChildren();
-  }
-
-  // Update Child Settings - DEMO VERSION
-  Future<bool> updateChildSettings({
-    required String childId,
-    String? name,
-    int? age,
-    int? screenTimeLimit,
-    List<String>? restrictions,
-  }) async {
+// TOGGLE CHILD ACTIVE STATUS (Alternative to deletion - safer option)
+  Future<bool> toggleChildStatus(String childId, bool isActive) async {
     if (!isParent || _currentUserId == null) {
-      setError('Only parents can update child settings');
+      setError('Only parents can modify child accounts');
       return false;
     }
 
-    setLoading(true);
-    clearError();
-    
     try {
-      // Find child in demo list
-      final childIndex = _children.indexWhere((child) => child['id'] == childId);
-      if (childIndex == -1) {
-        setError('Child not found');
-        setLoading(false);
-        return false;
+      await _firestore.collection('children').doc(childId).update({
+        'isActive': isActive,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update local list
+      final childIndex = _children.indexWhere((c) => c['id'] == childId);
+      if (childIndex != -1) {
+        _children[childIndex]['isActive'] = isActive;
       }
-      
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Update child data in demo list
-      final child = _children[childIndex];
-      if (name != null) child['name'] = name;
-      if (age != null) child['age'] = age;
-      if (screenTimeLimit != null) child['screenTimeLimit'] = screenTimeLimit;
-      if (restrictions != null) child['restrictions'] = restrictions;
-      child['updatedAt'] = DateTime.now().toIso8601String();
-      
-      setLoading(false);
+
       notifyListeners();
       return true;
     } catch (e) {
-      setError('Failed to update child settings: ${e.toString()}');
-      setLoading(false);
+      setError('Failed to update child status: ${e.toString()}');
       return false;
     }
   }
 
-  // Get specific child by ID
+// UPDATE CHILD SCREEN TIME (for tracking usage)
+  Future<bool> updateChildScreenTime(String childId, int minutesUsed) async {
+    try {
+      await _firestore.collection('children').doc(childId).update({
+        'screenTime': FieldValue.increment(minutesUsed),
+        'lastActivityAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update local list
+      final childIndex = _children.indexWhere((c) => c['id'] == childId);
+      if (childIndex != -1) {
+        _children[childIndex]['screenTime'] =
+            (_children[childIndex]['screenTime'] ?? 0) + minutesUsed;
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      setError('Failed to update screen time: ${e.toString()}');
+      return false;
+    }
+  }
+
+// RESET DAILY SCREEN TIME (call this at midnight or on demand)
+  Future<bool> resetChildScreenTime(String childId) async {
+    try {
+      await _firestore.collection('children').doc(childId).update({
+        'screenTime': 0,
+        'lastResetAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update local list
+      final childIndex = _children.indexWhere((c) => c['id'] == childId);
+      if (childIndex != -1) {
+        _children[childIndex]['screenTime'] = 0;
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      setError('Failed to reset screen time: ${e.toString()}');
+      return false;
+    }
+  }
+
+// RESET ALL CHILDREN SCREEN TIME
+  Future<void> resetAllChildrenScreenTime() async {
+    if (!isParent || _currentUserId == null) return;
+
+    try {
+      final batch = _firestore.batch();
+
+      for (var child in _children) {
+        final childRef = _firestore.collection('children').doc(child['id']);
+        batch.update(childRef, {
+          'screenTime': 0,
+          'lastResetAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+
+      // Update local list
+      for (var i = 0; i < _children.length; i++) {
+        _children[i]['screenTime'] = 0;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      setError('Failed to reset screen times: ${e.toString()}');
+    }
+  }
+
+// GET CHILD DETAILS (with real-time updates)
+  Future<Map<String, dynamic>?> getChildDetails(String childId) async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('children').doc(childId).get();
+
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return data;
+      }
+      return null;
+    } catch (e) {
+      setError('Failed to get child details: ${e.toString()}');
+      return null;
+    }
+  }
+
+// BULK UPDATE RESTRICTIONS (for multiple children at once)
+  Future<bool> bulkUpdateRestrictions(
+    List<String> childIds,
+    List<String> restrictions,
+  ) async {
+    if (!isParent || _currentUserId == null) {
+      setError('Only parents can update restrictions');
+      return false;
+    }
+
+    try {
+      final batch = _firestore.batch();
+
+      for (var childId in childIds) {
+        final childRef = _firestore.collection('children').doc(childId);
+        batch.update(childRef, {
+          'restrictions': restrictions,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+      await _loadChildren(); // Refresh local data
+
+      return true;
+    } catch (e) {
+      setError('Failed to update restrictions: ${e.toString()}');
+      return false;
+    }
+  }
+
+  void _resetUserState() {
+    _isLoggedIn = false;
+    _currentUserId = null;
+    _currentUserName = null;
+    _userType = null;
+    _children = [];
+    notifyListeners();
+  }
+
+  Future<void> refreshChildren() async {
+    if (!isParent) return;
+    await _loadChildren();
+  }
+
   Map<String, dynamic>? getChildById(String childId) {
     try {
       return _children.firstWhere((child) => child['id'] == childId);
@@ -413,88 +582,46 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  // LOGOUT
   Future<void> logout() async {
     try {
-      // In real implementation, call Firebase sign out
-      // await _authService.signOut();
-      
-      // Simulate logout delay
-      await Future.delayed(const Duration(milliseconds: 500));
+      await _auth.signOut();
     } catch (e) {
-      // Handle error if needed
+      setError('Logout failed: ${e.toString()}');
     }
-    
-    _isLoggedIn = false;
-    _currentUserId = null;
-    _currentUserName = null;
-    _userType = null;
-    _children = [];
-    clearError();
-    notifyListeners();
   }
-  
-  // Utility methods
+
   void setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
-  
+
   void setError(String error) {
     _errorMessage = error;
     notifyListeners();
   }
-  
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
-  // Demo data methods (for development and testing)
-  Map<String, dynamic> getDemoScreenTimeData() {
-    return {
-      'today': {
-        'total': 165,
-        'limit': 240,
-        'apps': [
-          {'name': 'Educational Apps', 'time': 45, 'icon': 'school'},
-          {'name': 'Games', 'time': 60, 'icon': 'games'},
-          {'name': 'YouTube Kids', 'time': 40, 'icon': 'video'},
-          {'name': 'Other', 'time': 20, 'icon': 'apps'},
-        ]
-      },
-      'week': [
-        {'day': 'Mon', 'time': 120},
-        {'day': 'Tue', 'time': 140},
-        {'day': 'Wed', 'time': 100},
-        {'day': 'Thu', 'time': 160},
-        {'day': 'Fri', 'time': 180},
-        {'day': 'Sat', 'time': 200},
-        {'day': 'Sun', 'time': 165},
-      ]
-    };
-  }
-
-  // Get child's screen time for today
+  // Helper methods (keep all your existing helper methods)
   int getChildScreenTimeToday(String childId) {
     final child = getChildById(childId);
     return child?['screenTime'] ?? 0;
   }
 
-  // Get child's screen time limit
   int getChildScreenTimeLimit(String childId) {
     final child = getChildById(childId);
     return child?['screenTimeLimit'] ?? 120;
   }
 
-  // Check if child has exceeded screen time
   bool hasChildExceededScreenTime(String childId) {
     final screenTime = getChildScreenTimeToday(childId);
     final limit = getChildScreenTimeLimit(childId);
     return screenTime >= limit;
   }
 
-  // Get screen time progress (0.0 to 1.0)
   double getChildScreenTimeProgress(String childId) {
     final screenTime = getChildScreenTimeToday(childId);
     final limit = getChildScreenTimeLimit(childId);
@@ -502,7 +629,6 @@ class AppProvider with ChangeNotifier {
     return (screenTime / limit).clamp(0.0, 1.0);
   }
 
-  // Format screen time for display
   String formatScreenTime(int minutes) {
     if (minutes < 60) {
       return '${minutes}m';
@@ -515,5 +641,26 @@ class AppProvider with ChangeNotifier {
         return '${hours}h ${remainingMinutes}m';
       }
     }
+  }
+
+  String _getFirebaseErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No account found with this email address.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'email-already-in-use':
+        return 'An account already exists with this email address.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'weak-password':
+        return 'Password is too weak. Please choose a stronger password.';
+      default:
+        return 'Email or Password is Incorrect';
+    }
+  }
+
+  String _hashPassword(String password) {
+    return password.hashCode.toString();
   }
 }

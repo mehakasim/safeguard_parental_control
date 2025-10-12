@@ -1,5 +1,9 @@
 // lib/screens/dashboard/widgets/child_quick_actions.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/app_provider.dart';
+import '../../children/child_view_screen.dart';
+import '../../children/edit_child_screen.dart';
 import '../../../utils/theme.dart';
 
 class ChildQuickActions {
@@ -16,7 +20,6 @@ class ChildQuickActions {
 
 class _ChildQuickActionsSheet extends StatelessWidget {
   final Map<String, dynamic> child;
-
   const _ChildQuickActionsSheet({required this.child});
 
   @override
@@ -32,7 +35,8 @@ class _ChildQuickActionsSheet extends StatelessWidget {
               CircleAvatar(
                 backgroundColor: AppTheme.seaGreen.withOpacity(0.1),
                 child: Text(
-                  child['name']?.toString().substring(0, 1).toUpperCase() ?? '?',
+                  child['name']?.toString().substring(0, 1).toUpperCase() ??
+                      '?',
                   style: const TextStyle(
                     color: AppTheme.seaGreen,
                     fontWeight: FontWeight.bold,
@@ -50,46 +54,30 @@ class _ChildQuickActionsSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // Action Items
           _buildActionItem(
             context,
+            'View Details',
+            Icons.visibility_rounded,
+            Colors.blue,
+            () => _showChildDetails(context),
+          ),
+
+          _buildActionItem(
+            context,
             'Edit Settings',
-            Icons.edit,
+            Icons.edit_rounded,
             AppTheme.seaGreen,
             () => _handleEditSettings(context),
           ),
-          
-          _buildActionItem(
-            context,
-            'Pause Device',
-            Icons.pause_circle,
-            Colors.orange,
-            () => _handlePauseDevice(context),
-          ),
-          
-          _buildActionItem(
-            context,
-            'Add Time',
-            Icons.add_circle,
-            Colors.blue,
-            () => _showAddTimeDialog(context),
-          ),
-          
-          _buildActionItem(
-            context,
-            'View Details',
-            Icons.info_outline,
-            Colors.purple,
-            () => _showChildDetails(context),
-          ),
-          
+
           const Divider(),
-          
+
           _buildActionItem(
             context,
-            'Remove Child',
-            Icons.delete,
+            'Delete Account',
+            Icons.delete_rounded,
             Colors.red,
             () => _showDeleteDialog(context),
           ),
@@ -106,8 +94,16 @@ class _ChildQuickActionsSheet extends StatelessWidget {
     VoidCallback onTap,
   ) {
     return ListTile(
-      leading: Icon(icon, color: color),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
       title: Text(title),
+      trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
       onTap: () {
         Navigator.pop(context);
         onTap();
@@ -116,92 +112,19 @@ class _ChildQuickActionsSheet extends StatelessWidget {
   }
 
   void _handleEditSettings(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit settings coming soon!')),
-    );
-  }
-
-  void _handlePauseDevice(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Device pause feature coming soon!')),
-    );
-  }
-
-  void _showAddTimeDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add Time for ${child['name']}'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('How much additional time would you like to add?'),
-            SizedBox(height: 16),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Added 30 minutes!')),
-              );
-            },
-            child: const Text('Add 30 min'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Added 1 hour!')),
-              );
-            },
-            child: const Text('Add 1 hour'),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditChildScreen(child: child),
       ),
     );
   }
 
   void _showChildDetails(BuildContext context) {
-    final restrictions = child['restrictions'] as List? ?? [];
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${child['name']} Details'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailRow('Age', '${child['age'] ?? 'Unknown'} years old'),
-            _buildDetailRow('Email', child['email'] ?? 'Not set'),
-            _buildDetailRow('Screen Time Limit', '${child['screenTimeLimit'] ?? 120} minutes/day'),
-            _buildDetailRow('Restrictions', '${restrictions.length} active'),
-            if (restrictions.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Active Restrictions:',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              ...restrictions.map((r) => Text(
-                '• ${_getRestrictionName(r.toString())}',
-                style: const TextStyle(fontSize: 12),
-              )),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChildViewScreen(child: child),
       ),
     );
   }
@@ -209,76 +132,169 @@ class _ChildQuickActionsSheet extends StatelessWidget {
   void _showDeleteDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Remove Child'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.warning_rounded, color: Colors.red.shade700, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Delete Account?',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
           ],
         ),
-        content: Text(
-          'Are you sure you want to remove ${child['name']}?\n\nThis will:\n• Delete their account permanently\n• Remove all their data\n• Cannot be undone',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Delete ${child['name']}\'s account permanently?',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'This will remove:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDeleteWarningItem('Account & profile'),
+                  _buildDeleteWarningItem('Activity history'),
+                  _buildDeleteWarningItem('All settings'),
+                  const SizedBox(height: 12),
+                  Text(
+                    'This action cannot be undone',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade900,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text('Cancel', style: TextStyle(fontSize: 16)),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Remove child feature coming soon')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              
+              // Get provider from the original context (not dialogContext)
+              final provider = Provider.of<AppProvider>(context, listen: false);
+
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (loadingContext) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
               );
+
+              final success = await provider.deleteChildComplete(
+                child['id'],
+                child['email'],
+              );
+
+              if (context.mounted) {
+                Navigator.pop(context); // Close loading
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(
+                          success ? Icons.check_circle : Icons.error,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          success
+                              ? '${child['name']}\'s account deleted'
+                              : 'Failed to delete account',
+                        ),
+                      ],
+                    ),
+                    backgroundColor: success ? AppTheme.seaGreen : Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDeleteWarningItem(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppTheme.textGrey,
-                fontSize: 12,
-              ),
+          Icon(Icons.check_circle, size: 16, color: Colors.red.shade700),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.red.shade700,
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _getRestrictionName(String restriction) {
-    const restrictionMap = {
-      'adult_content': 'Adult Content',
-      'social_media': 'Social Media',
-      'gaming': 'Gaming',
-      'shopping': 'Online Shopping',
-      'violence': 'Violence',
-      'ads': 'Advertisements',
-    };
-    return restrictionMap[restriction] ?? restriction;
   }
 }

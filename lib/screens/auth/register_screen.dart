@@ -16,11 +16,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _acceptTerms = false;
-  
+
   // Password strength tracking
   bool _hasUppercase = false;
   bool _hasLowercase = false;
@@ -58,15 +58,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Full name is required';
     }
-    
+
     if (value.trim().length < 2) {
       return 'Name must be at least 2 characters';
     }
-    
+
     if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
       return 'Name can only contain letters and spaces';
     }
-    
+
     return null;
   }
 
@@ -74,12 +74,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Email is required';
     }
-    
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'Please enter a valid email address';
     }
-    
+
     return null;
   }
 
@@ -87,27 +87,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    
+
     if (value.length < 8) {
       return 'Password must be at least 8 characters';
     }
-    
+
     if (!_hasUppercase) {
       return 'Password must contain at least one uppercase letter';
     }
-    
+
     if (!_hasLowercase) {
       return 'Password must contain at least one lowercase letter';
     }
-    
+
     if (!_hasDigit) {
       return 'Password must contain at least one number';
     }
-    
+
     if (!_hasSpecialChar) {
       return 'Password must contain at least one special character';
     }
-    
+
     return null;
   }
 
@@ -115,11 +115,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Please confirm your password';
     }
-    
+
     if (value != _passwordController.text) {
       return 'Passwords do not match';
     }
-    
+
     return null;
   }
 
@@ -130,7 +130,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_hasLowercase) strength++;
     if (_hasDigit) strength++;
     if (_hasSpecialChar) strength++;
-    
+
     return strength / 5.0;
   }
 
@@ -158,7 +158,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_acceptTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please accept the Terms of Service and Privacy Policy'),
+          content:
+              Text('Please accept the Terms of Service and Privacy Policy'),
           backgroundColor: Colors.red,
         ),
       );
@@ -166,7 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     final appProvider = Provider.of<AppProvider>(context, listen: false);
-    
+
     final success = await appProvider.parentRegister(
       _nameController.text.trim(),
       _emailController.text.trim(),
@@ -213,8 +214,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 20),
-                    
-                    // Welcome Message
+
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppTheme.seaGreen.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.shield_rounded,
+                          size: 60,
+                          color: AppTheme.seaGreen,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+
                     const Text(
                       'Create Parent Account',
                       textAlign: TextAlign.center,
@@ -224,17 +241,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: AppTheme.textBlack,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     const Text(
                       'Start protecting your family today',
                       textAlign: TextAlign.center,
                       style: AppStyles.subtitleText,
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // Full Name Field
                     TextFormField(
                       controller: _nameController,
@@ -249,9 +266,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Email Field
                     TextFormField(
                       controller: _emailController,
@@ -267,9 +284,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Password Field
                     TextFormField(
                       controller: _passwordController,
@@ -297,9 +314,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     // Password Strength Indicator
                     if (_passwordController.text.isNotEmpty) ...[
                       Row(
@@ -328,7 +345,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _buildPasswordRequirements(),
                       const SizedBox(height: 8),
                     ],
-                    
+
                     // Confirm Password Field
                     TextFormField(
                       controller: _confirmPasswordController,
@@ -350,18 +367,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           onPressed: () {
                             setState(() {
-                              _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                              _isConfirmPasswordVisible =
+                                  !_isConfirmPasswordVisible;
                             });
                           },
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Terms and Conditions
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Checkbox(
                           value: _acceptTerms,
@@ -390,9 +408,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 30),
-                    
+
                     // Error Message
                     if (appProvider.errorMessage != null)
                       Container(
@@ -423,12 +441,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ],
                         ),
                       ),
-                    
+
                     // Register Button
                     SizedBox(
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: appProvider.isLoading ? null : _handleRegister,
+                        onPressed:
+                            appProvider.isLoading ? null : _handleRegister,
                         child: appProvider.isLoading
                             ? const SizedBox(
                                 height: 20,
@@ -436,8 +455,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
+                                      Colors.white),
                                 ),
                               )
                             : const Text(
@@ -449,9 +467,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // Sign In Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -465,7 +483,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            Navigator.of(context).pushReplacementNamed('/login');
+                            Navigator.of(context)
+                                .pushReplacementNamed('/login');
                           },
                           child: const Text(
                             'Sign In',

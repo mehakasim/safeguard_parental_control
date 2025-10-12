@@ -1,7 +1,10 @@
+// lib/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../utils/theme.dart';
+import '../dashboard/parent_dashboard.dart';
+import '../dashboard/child_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -63,8 +66,30 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success && mounted) {
-      // Navigate to dashboard on successful login
-      Navigator.of(context).pushReplacementNamed('/dashboard');
+      // Check user type and navigate accordingly
+      if (appProvider.userType == UserType.parent) {
+        // Navigate to parent dashboard
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const ParentDashboard(),
+          ),
+        );
+      } else if (appProvider.userType == UserType.child) {
+        // Navigate to child dashboard
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => const ChildDashboard(),
+          ),
+        );
+      } else {
+        // Unknown user type - show error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to determine account type'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -87,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: AppStyles.screenPadding,
+          padding: const EdgeInsets.all(20),
           child: Consumer<AppProvider>(
             builder: (context, appProvider, child) {
               return Form(
@@ -96,6 +121,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 20),
+                    
+                    // Logo or Icon
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.seaGreen.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.shield_rounded,
+                        size: 60,
+                        color: AppTheme.seaGreen,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 30),
                     
                     // Welcome Message
                     const Text(
@@ -113,7 +154,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Text(
                       'Keep your family safe and connected',
                       textAlign: TextAlign.center,
-                      style: AppStyles.subtitleText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textGrey,
+                      ),
                     ),
                     
                     const SizedBox(height: 40),
@@ -124,12 +168,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
                       validator: _validateEmail,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Email Address',
                         hintText: 'Enter your email',
-                        prefixIcon: Icon(
+                        prefixIcon: const Icon(
                           Icons.email_outlined,
                           color: AppTheme.seaGreen,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppTheme.seaGreen, width: 2),
                         ),
                       ),
                     ),
@@ -160,6 +215,17 @@ class _LoginScreenState extends State<LoginScreen> {
                               _isPasswordVisible = !_isPasswordVisible;
                             });
                           },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppTheme.seaGreen, width: 2),
                         ),
                       ),
                     ),
@@ -192,10 +258,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            // TODO: Implement forgot password
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Forgot password feature coming soon!'),
+                                behavior: SnackBarBehavior.floating,
                               ),
                             );
                           },
@@ -219,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         margin: const EdgeInsets.only(bottom: 20),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.red.shade200),
                         ),
                         child: Row(
@@ -248,6 +314,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: appProvider.isLoading ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.seaGreen,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
                         child: appProvider.isLoading
                             ? const SizedBox(
                                 height: 20,
@@ -268,64 +342,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
-                    
+                  
                     const SizedBox(height: 30),
-                    
-                    // Divider
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Divider(color: AppTheme.lightGrey),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR',
-                            style: TextStyle(
-                              color: AppTheme.textGrey,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const Expanded(
-                          child: Divider(color: AppTheme.lightGrey),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 30),
-                    
-                    // Social Login Buttons
-                    _buildSocialLoginButton(
-                      'Continue with Google',
-                      Icons.g_mobiledata,
-                      () {
-                        // TODO: Implement Google Sign In
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Google Sign In coming soon!'),
-                          ),
-                        );
-                      },
-                    ),
-                    
-                    const SizedBox(height: 12),
-                    
-                    _buildSocialLoginButton(
-                      'Continue with Apple',
-                      Icons.apple,
-                      () {
-                        // TODO: Implement Apple Sign In
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Apple Sign In coming soon!'),
-                          ),
-                        );
-                      },
-                    ),
-                    
-                    const SizedBox(height: 40),
                     
                     // Sign Up Link
                     Row(
@@ -358,37 +376,6 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             },
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialLoginButton(
-    String text,
-    IconData icon,
-    VoidCallback onPressed,
-  ) {
-    return SizedBox(
-      height: 56,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
-          foregroundColor: AppTheme.textBlack,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24),
-            const SizedBox(width: 12),
-            Text(
-              text,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
         ),
       ),
     );
