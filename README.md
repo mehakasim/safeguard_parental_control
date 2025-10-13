@@ -56,9 +56,7 @@ Before you begin, ensure you have the following installed on your system:
 1. Download Git from [https://git-scm.com/download/win](https://git-scm.com/download/win)
 2. Run the installer and follow the setup wizard
 3. Verify installation:
-```bash
-git --version
-
+- git --version
 
 ### Step 2: Install Flutter & Dart
 
