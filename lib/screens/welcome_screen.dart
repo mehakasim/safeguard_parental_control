@@ -29,10 +29,10 @@ class WelcomeScreen extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              
+
               // App Title
               const Text(
-                'SafeGuard',
+                'ChildGuard',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 32,
@@ -40,9 +40,9 @@ class WelcomeScreen extends StatelessWidget {
                   color: Colors.black,
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // App Subtitle
               const Text(
                 'Parental Control Made Simple',
@@ -52,9 +52,9 @@ class WelcomeScreen extends StatelessWidget {
                   color: Colors.black54,
                 ),
               ),
-              
+
               const SizedBox(height: 48),
-              
+
               // Features List
               _buildFeatureItem(Icons.access_time, 'Monitor Screen Time'),
               const SizedBox(height: 16),
@@ -63,9 +63,9 @@ class WelcomeScreen extends StatelessWidget {
               _buildFeatureItem(Icons.security, 'Ad-Free Experience'),
               const SizedBox(height: 16),
               _buildFeatureItem(Icons.child_care, 'Multiple Child Profiles'),
-              
+
               const SizedBox(height: 48),
-              
+
               // Login Button
               ElevatedButton(
                 onPressed: () {
@@ -89,9 +89,9 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Register Button
               OutlinedButton(
                 onPressed: () {
@@ -114,9 +114,9 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Terms and Privacy
               const Text(
                 'By continuing, you agree to our Terms of Service and Privacy Policy',

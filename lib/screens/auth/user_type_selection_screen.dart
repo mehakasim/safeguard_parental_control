@@ -32,7 +32,7 @@ class UserTypeSelectionScreen extends StatelessWidget {
 
               // App Title
               const Text(
-                'SafeGuard',
+                'ChildGuard',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 36,

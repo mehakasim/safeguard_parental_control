@@ -27,7 +27,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<AdminProvider>(context, listen: false);
-      
+
       final success = await provider.adminLogin(
         _emailController.text,
         _passwordController.text,
@@ -85,7 +85,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'SafeGuard Management System',
+                    'ChildGuard Management System',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.grey[600],
@@ -125,7 +125,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() => _obscurePassword = !_obscurePassword);
@@ -184,7 +186,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   // Back to Main Login
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).pushReplacementNamed('/user-type-selection');
+                      Navigator.of(context)
+                          .pushReplacementNamed('/user-type-selection');
                     },
                     child: const Text('Back to Main Login'),
                   ),

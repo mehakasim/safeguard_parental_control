@@ -9,7 +9,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -17,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -83,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                 // App Name
                 const Text(
-                  'SafeGuard',
+                  'ChildGuard',
                   style: TextStyle(
                     fontSize: 48,
                     fontWeight: FontWeight.bold,

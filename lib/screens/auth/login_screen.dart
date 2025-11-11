@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
 
@@ -32,12 +32,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (value == null || value.isEmpty) {
       return 'Email is required';
     }
-    
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'Please enter a valid email address';
     }
-    
+
     return null;
   }
 
@@ -45,11 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    
+
     if (value.length < 6) {
       return 'Password must be at least 6 characters';
     }
-    
+
     return null;
   }
 
@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final appProvider = Provider.of<AppProvider>(context, listen: false);
-    
+
     final success = await appProvider.login(
       _emailController.text.trim(),
       _passwordController.text,
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 20),
-                    
+
                     // Logo or Icon
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -135,12 +135,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppTheme.seaGreen,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 30),
-                    
+
                     // Welcome Message
                     const Text(
-                      'Sign in to SafeGuard',
+                      'Sign in to ChildGuard',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
@@ -148,9 +148,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppTheme.textBlack,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     const Text(
                       'Keep your family safe and connected',
                       textAlign: TextAlign.center,
@@ -159,9 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppTheme.textGrey,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 40),
-                    
+
                     // Email Field
                     TextFormField(
                       controller: _emailController,
@@ -184,13 +184,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppTheme.seaGreen, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.seaGreen, width: 2),
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
-                    
+
                     // Password Field
                     TextFormField(
                       controller: _passwordController,
@@ -225,13 +226,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppTheme.seaGreen, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.seaGreen, width: 2),
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Remember Me & Forgot Password
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -260,7 +262,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Forgot password feature coming soon!'),
+                                content: Text(
+                                    'Forgot password feature coming soon!'),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -275,9 +278,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 30),
-                    
+
                     // Error Message
                     if (appProvider.errorMessage != null)
                       Container(
@@ -308,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ),
-                    
+
                     // Login Button
                     SizedBox(
                       height: 56,
@@ -342,9 +345,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
-                  
+
                     const SizedBox(height: 30),
-                    
+
                     // Sign Up Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -358,7 +361,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         TextButton(
                           onPressed: () {
-                            Navigator.of(context).pushReplacementNamed('/register');
+                            Navigator.of(context)
+                                .pushReplacementNamed('/register');
                           },
                           child: const Text(
                             'Sign Up',

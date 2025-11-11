@@ -20,7 +20,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
   int _selectedIndex = 0;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final _screenTimeService = ScreenTimeService();
-  
+
   Map<String, dynamic>? _childData;
   bool _isLoading = true;
 
@@ -120,7 +120,8 @@ class _ChildDashboardState extends State<ChildDashboard> {
       await provider.logout();
 
       if (mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil('/user-type-selection', (route) => false);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/user-type-selection', (route) => false);
       }
     }
   }
@@ -161,12 +162,16 @@ class _ChildDashboardState extends State<ChildDashboard> {
                     color: Colors.red.shade50,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.error_outline, size: 64, color: Colors.red.shade400),
+                  child: Icon(Icons.error_outline,
+                      size: 64, color: Colors.red.shade400),
                 ),
                 const SizedBox(height: 24),
                 const Text(
                   'Unable to load profile',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textBlack),
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textBlack),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -182,8 +187,10 @@ class _ChildDashboardState extends State<ChildDashboard> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.seaGreen,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ],
@@ -225,7 +232,7 @@ class _ChildDashboardState extends State<ChildDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'SafeGuard',
+                'ChildGuard',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
@@ -305,19 +312,22 @@ class _ChildDashboardState extends State<ChildDashboard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Need help? Here are some tips:', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('Need help? Here are some tips:',
+                style: TextStyle(fontWeight: FontWeight.w600)),
             SizedBox(height: 12),
             Text('• Check your screen time in the Home tab'),
             Text('• Find safe apps in the Apps tab'),
             Text('• View your profile in Settings'),
             SizedBox(height: 12),
-            Text('If you need more help, ask your parent!', style: TextStyle(fontStyle: FontStyle.italic)),
+            Text('If you need more help, ask your parent!',
+                style: TextStyle(fontStyle: FontStyle.italic)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Got it!', style: TextStyle(color: AppTheme.seaGreen)),
+            child: const Text('Got it!',
+                style: TextStyle(color: AppTheme.seaGreen)),
           ),
         ],
       ),
@@ -337,7 +347,8 @@ class _ChildDashboardState extends State<ChildDashboard> {
                 color: AppTheme.seaGreen.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.shield_rounded, color: AppTheme.seaGreen, size: 24),
+              child: const Icon(Icons.shield_rounded,
+                  color: AppTheme.seaGreen, size: 24),
             ),
             const SizedBox(width: 12),
             const Text('About SafeGuard'),
@@ -347,22 +358,27 @@ class _ChildDashboardState extends State<ChildDashboard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('SafeGuard helps keep you safe while exploring the digital world.', style: TextStyle(fontSize: 16)),
+            Text(
+                'SafeGuard helps keep you safe while exploring the digital world.',
+                style: TextStyle(fontSize: 16)),
             SizedBox(height: 16),
-            Text('Features:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text('Features:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             SizedBox(height: 8),
             Text('• Screen time tracking'),
             Text('• Safe content filtering'),
             Text('• Educational resources'),
             Text('• Fun and safe apps'),
             SizedBox(height: 16),
-            Text('Version: 1.0.0', style: TextStyle(color: AppTheme.textGrey, fontSize: 12)),
+            Text('Version: 1.0.0',
+                style: TextStyle(color: AppTheme.textGrey, fontSize: 12)),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: AppTheme.seaGreen)),
+            child:
+                const Text('Close', style: TextStyle(color: AppTheme.seaGreen)),
           ),
         ],
       ),
@@ -374,7 +390,10 @@ class _ChildDashboardState extends State<ChildDashboard> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -2)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2)),
         ],
       ),
       child: SafeArea(
@@ -401,13 +420,16 @@ class _ChildDashboardState extends State<ChildDashboard> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.seaGreen.withOpacity(0.1) : Colors.transparent,
+          color: isSelected
+              ? AppTheme.seaGreen.withOpacity(0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isSelected ? AppTheme.seaGreen : Colors.grey, size: 26),
+            Icon(icon,
+                color: isSelected ? AppTheme.seaGreen : Colors.grey, size: 26),
             const SizedBox(height: 4),
             Text(
               label,

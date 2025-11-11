@@ -178,7 +178,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Show success message and navigate to dashboard
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Account created successfully! Welcome to SafeGuard.'),
+          content: Text('Account created successfully! Welcome to ChildGuard.'),
           backgroundColor: AppTheme.seaGreen,
         ),
       );

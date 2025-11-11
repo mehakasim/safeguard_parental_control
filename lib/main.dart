@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AdminProvider()),
       ],
       child: MaterialApp(
-        title: 'SafeGuard Parental Control',
+        title: 'ChildGuard',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         initialRoute: '/',
