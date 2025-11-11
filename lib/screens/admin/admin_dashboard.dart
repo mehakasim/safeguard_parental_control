@@ -54,7 +54,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'SafeGuard Admin',
+                'ChildGuard Admin',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
