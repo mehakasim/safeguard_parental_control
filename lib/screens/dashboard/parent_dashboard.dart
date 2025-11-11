@@ -57,7 +57,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'SafeGuard',
+                'ChildGuard',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
